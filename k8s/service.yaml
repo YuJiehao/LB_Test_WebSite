@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: load-balancer-test-service
+  labels:
+    app: load-balancer-test
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: load-balancer-test
+  # 开启会话亲和性（可选）
+  # sessionAffinity: ClientIP
+  # sessionAffinityConfig:
+  #   clientIP:
+  #     timeoutSeconds: 10800  # 3小时
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: load-balancer-test-nodeport
+  labels:
+    app: load-balancer-test
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 3000
+    nodePort: 30080
+    protocol: TCP
+    name: http
+  selector:
+    app: load-balancer-test
+---
+# Ingress配置示例（可选，需要Ingress Controller）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: load-balancer-test-ingress
+  annotations:
+    # Nginx Ingress会话保持配置
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "lb-test-cookie"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "3600"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/"
+    
+    # 或者使用IP Hash方式
+    # nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    
+    # 获取真实客户端IP
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+    nginx.ingress.kubernetes.io/compute-full-forwarded-for: "true"
+    nginx.ingress.kubernetes.io/use-proxy-protocol: "false"
+spec:
+  rules:
+  - host: lb-test.local  # 替换为您的域名
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: load-balancer-test-service
+            port:
+              number: 80
+  # 如果需要HTTPS，取消注释以下部分
+  # tls:
+  # - hosts:
+  #   - lb-test.local
+  #   secretName: lb-test-tls

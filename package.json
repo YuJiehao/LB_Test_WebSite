@@ -1,0 +1,23 @@
+{
+  "name": "load-balancer-test-site",
+  "version": "1.0.0",
+  "description": "Web site for testing load balancer functionality, session persistence, long connections and fault injection",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "express-session": "^1.17.0",
+    "cookie-parser": "^1.4.0",
+    "ejs": "^3.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "keywords": ["load-balancer", "test", "session-persistence", "websocket", "fault-injection"],
+  "author": "",
+  "license": "MIT"
+}

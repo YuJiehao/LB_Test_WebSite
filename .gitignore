@@ -1,0 +1,55 @@
+# ===== Node 依赖 =====
+node_modules/
+npm-debug.log*
+yarn-error.log
+.pnpm-debug.log*
+
+# ===== 运行时临时文件 =====
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+*.swo
+
+# ===== 编辑器/IDE =====
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+.claude/
+
+# ===== 环境变量/敏感配置 =====
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+secrets/
+config/local.*
+
+# ===== 临时构建产物 =====
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+*.tgz
+*.tar.gz
+
+# ===== Docker 构建产物 =====
+Dockerfile.local
+docker-compose.override.yml
+
+# ===== K8s 临时 =====
+*.kubeconfig
+kubeconfig

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会话保持测试 - 负载均衡测试站点</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status-card {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border-left-color: #28a745;
+        }
+        .status-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-left-color: #ffc107;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .info-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .info-item {
+            margin-bottom: 12px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        .info-value {
+            color: #495057;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .server-match {
+            font-size: 24px;
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .match-yes {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .match-no {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 会话保持测试结果</h1>
+        
+        <!-- 会话状态总览 -->
+        <% if (sessionPersistent) { %>
+            <div class="status-card status-success">
+                <h3>✅ 会话保持成功</h3>
+                <p>用户 <strong><%= username %></strong> 的会话正常保持，JSESSIONID: <code><%= sessionId %></code></p>
+                <p>登录时间: <%= loginTime %></p>
+            </div>
+        <% } else { %>
+            <div class="status-card status-error">
+                <h3>❌ 会话保持失败</h3>
+                <p>检测到会话丢失或未登录状态</p>
+            </div>
+        <% } %>
+        
+        <!-- 服务器匹配状态 -->
+        <div class="server-match <%= serverMatches ? 'match-yes' : 'match-no' %>">
+            <% if (serverMatches) { %>
+                🎯 <strong>服务器匹配:</strong> 请求路由到同一服务器
+            <% } else { %>
+                ⚠️ <strong>服务器不匹配:</strong> 请求被路由到不同服务器
+            <% } %>
+        </div>
+        
+        <!-- 详细信息网格 -->
+        <div class="info-grid">
+            <!-- 会话信息 -->
+            <div class="info-section">
+                <div class="section-title">🔑 会话信息</div>
+                <div class="info-item">
+                    <div class="info-label">JSESSIONID:</div>
+                    <div class="info-value"><%= sessionId %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">登录用户:</div>
+                    <div class="info-value"><%= username || '未登录' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">登录时间:</div>
+                    <div class="info-value"><%= loginTime || '未登录' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">会话状态:</div>
+                    <div class="info-value">
+                        <% if (sessionPersistent) { %>
+                            <span style="color: #28a745;">✅ 活跃</span>
+                        <% } else { %>
+                            <span style="color: #dc3545;">❌ 无效</span>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 服务器信息 -->
+            <div class="info-section">
+                <div class="section-title">🖥️ 服务器信息</div>
+                <div class="info-item">
+                    <div class="info-label">当前服务器IP:</div>
+                    <div class="info-value"><%= currentServer %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">会话创建服务器IP:</div>
+                    <div class="info-value"><%= sessionServer || '未知' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">服务器匹配:</div>
+                    <div class="info-value">
+                        <% if (serverMatches) { %>
+                            <span style="color: #28a745;">✅ 匹配</span>
+                        <% } else { %>
+                            <span style="color: #dc3545;">❌ 不匹配</span>
+                        <% } %>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">当前时间:</div>
+                    <div class="info-value"><%= currentTime %></div>
+                </div>
+            </div>
+            
+            <!-- 网络信息 -->
+            <div class="info-section">
+                <div class="section-title">🌐 网络信息</div>
+                <div class="info-item">
+                    <div class="info-label">客户端IP:</div>
+                    <div class="info-value"><%= clientIP %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">X-Forwarded-For:</div>
+                    <div class="info-value"><%= headers['x-forwarded-for'] || '未设置' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">X-Real-IP:</div>
+                    <div class="info-value"><%= headers['x-real-ip'] || '未设置' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">User-Agent:</div>
+                    <div class="info-value" style="font-size: 12px;"><%= headers['user-agent'] %></div>
+                </div>
+            </div>
+            
+            <!-- Cookie信息 -->
+            <div class="info-section">
+                <div class="section-title">🍪 Cookie信息</div>
+                <% if (Object.keys(cookies).length > 0) { %>
+                    <% Object.entries(cookies).forEach(([key, value]) => { %>
+                        <div class="info-item">
+                            <div class="info-label"><%= key %>:</div>
+                            <div class="info-value"><%= value %></div>
+                        </div>
+                    <% }) %>
+                <% } else { %>
+                    <div class="info-item">
+                        <div class="info-value">无其他Cookie</div>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn btn-primary" onclick="location.reload()">🔄 刷新测试</button>
+            <a href="/" class="btn btn-secondary">🏠 返回主页</a>
+            <a href="/logout" class="btn btn-danger">🚪 退出登录</a>
+        </div>
+        
+        <!-- 测试说明 -->
+        <div style="margin-top: 30px; padding: 20px; background-color: #e9ecef; border-radius: 8px;">
+            <h4>🔍 会话保持判断依据</h4>
+            <ul>
+                <li><strong>JSESSIONID持久性:</strong> 多次请求中会话ID保持一致</li>
+                <li><strong>服务器路由:</strong> 检查请求是否路由到相同的后端服务器</li>
+                <li><strong>会话数据完整性:</strong> 登录信息和会话数据是否完整保存</li>
+                <li><strong>Cookie传递:</strong> 会话Cookie是否正确传递和识别</li>
+            </ul>
+            
+            <h4>💡 负载均衡测试建议</h4>
+            <ul>
+                <li>多次刷新此页面，观察服务器IP是否变化</li>
+                <li>如果启用了会话粘性，服务器IP应保持一致</li>
+                <li>如果没有会话粘性，但会话保持正常，说明会话共享配置正确</li>
+                <li>观察X-Forwarded-For等负载均衡器添加的头部信息</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

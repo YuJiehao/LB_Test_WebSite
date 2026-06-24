@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>负载均衡测试站点</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info-grid {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            color: #28a745;
+            font-family: 'Courier New', monospace;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .refresh-btn {
+            float: right;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 负载均衡测试站点</h1>
+
+        <% if (isLoggedIn) { %>
+            <div class="status status-success">
+                ✅ 已登录用户: <%= username %> (会话ID: <%= sessionId %>)
+            </div>
+        <% } %>
+
+        <button class="btn refresh-btn" onclick="location.reload()">🔄 刷新页面</button>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">🖥️ 服务器IP地址:</div>
+                <div class="info-value"><%= serverIP %></div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">⏰ 当前时间:</div>
+                <div class="info-value"><%= currentTime %></div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">🌐 客户端IP地址:</div>
+                <div class="info-value"><%= clientIP %></div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">📡 X-Forwarded-For:</div>
+                <div class="info-value"><%= xForwardedFor || '未设置' %></div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">🔑 会话ID (JSESSIONID):</div>
+                <div class="info-value"><%= sessionId %></div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">🔧 用户代理:</div>
+                <div class="info-value" style="word-break: break-all;"><%= userAgent %></div>
+            </div>
+
+            <div class="info-item" style="border-left-color: <%= faultMode === 'none' ? '#28a745' : '#dc3545' %>;">
+                <div class="info-label">🩺 本Pod健康状态 (F5 monitor):</div>
+                <div class="info-value" style="color: <%= faultMode === 'none' ? '#28a745' : '#dc3545' %>;">
+                    <% if (faultMode === 'none') { %>✅ 正常 (200 OK) <% } else { %>❌ 已注入故障: <%= faultMode %> <% } %>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <% if (!isLoggedIn) { %>
+                <a href="/login" class="btn">🔐 登录测试会话保持</a>
+            <% } else { %>
+                <a href="/session-test" class="btn">📊 查看会话保持状态</a>
+                <a href="/logout" class="btn btn-danger">🚪 退出登录</a>
+            <% } %>
+            <a href="/long-connection" class="btn" style="background-color:#17a2b8;">🔌 长连接业务</a>
+            <a href="/admin/fault" class="btn" style="background-color:#fd7e14;">⚙️ 故障注入 (F5 monitor)</a>
+        </div>
+
+        <div style="margin-top: 30px; padding: 15px; background-color: #e9ecef; border-radius: 5px; font-size: 14px;">
+            <strong>使用说明:</strong>
+            <ul>
+                <li>此站点用于测试负载均衡器的会话保持功能</li>
+                <li>点击"登录测试会话保持"进入登录页面，登录后可查看会话是否在多次请求中保持一致</li>
+                <li>刷新页面可查看请求是否路由到同一服务器</li>
+                <li><strong>长连接业务</strong>：测试 WebSocket / SSE / 长轮询在 F5 上的表现</li>
+                <li><strong>故障注入</strong>：修改本 Pod 的 <code>/health</code> 响应，让 F5 HTTP monitor 探测到业务故障，触发 action on service down</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
