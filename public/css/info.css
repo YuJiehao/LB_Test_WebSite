@@ -15,7 +15,7 @@
 .info-item {
     background: var(--color-bg-card);
     padding: 12px 15px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-input);
     border-left: 4px solid var(--color-primary);
 }
 
@@ -36,7 +36,7 @@
 .info-section {
     background: var(--color-bg-card);
     padding: 20px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-card);
     border: 1px solid var(--color-border);
 }
 
@@ -53,7 +53,7 @@
     margin-bottom: 12px;
     padding: 8px;
     background: white;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-input);
 }
 
 /* —— 颜色变体 —— */

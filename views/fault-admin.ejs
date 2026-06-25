@@ -1,75 +1,89 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="F5 HTTP Monitor 故障注入管理">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>⚙️</text></svg>">
-    <title>故障注入管理 - F5 HTTP Monitor 测试</title>
-    <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/info.css">
-    <link rel="stylesheet" href="/css/status.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <style>
-        .fa-container   { max-width: 1100px; margin: 0 auto; }
-        .slow-delay     { width: 160px; }
-        .event-log      { max-height: 300px; }
-        .form-row-tight { margin: 8px 0 16px; }
-        .desc-line      { font-size: 13px; color: var(--color-text-muted); margin: 8px 0 12px; }
-    </style>
+    <%- include('partials/head', {
+        title: '故障注入管理 - F5 HTTP Monitor 测试',
+        extraCss: '<style>.fa-container { max-width: 1100px; margin: 0 auto; } .slow-delay { width: 160px; } .event-log { max-height: 300px; } .form-row-tight { margin: 8px 0 16px; } .desc-line { font-size: 13px; color: var(--color-text-muted); margin: 8px 0 12px; } .fault-table { width: 100%; border-collapse: collapse; font-size: 14px; } .fault-table th, .fault-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--color-border); } .fault-table th { background: var(--color-bg-muted); color: var(--color-text-strong); font-weight: 600; font-size: 13px; } .fault-table tr:hover td { background: rgba(0, 123, 255, 0.04); } .fault-table .verdict-up { color: var(--color-success); font-weight: 600; } .fault-table .verdict-down { color: var(--color-danger); font-weight: 600; }</style>'
+    }) %>
 </head>
 <body>
+    <%- include('partials/nav', { active: 'fault', serverIP: serverIP }) %>
+
     <div class="container fa-container">
-        <h1>⚙️ 业务故障注入管理</h1>
+        <h1>
+            <%- include('partials/icon', { name: 'settings', size: 22 }) %>
+            业务故障注入管理
+        </h1>
         <p class="muted-title">
             通过修改本 Pod 的 <code>/health</code> 响应，让 F5 的 HTTP monitor 探测到故障
         </p>
 
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">🖥️ 当前 Pod IP</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'server', size: 13 }) %>
+                    当前 Pod IP
+                </div>
                 <div class="info-value"><%= serverIP %></div>
             </div>
             <div class="info-item">
-                <div class="info-label">⏰ 当前时间</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'clock', size: 13 }) %>
+                    当前时间
+                </div>
                 <div class="info-value live-clock"><%= currentTime %></div>
             </div>
             <div class="info-item">
-                <div class="info-label">🔗 健康检查 URL</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'plug', size: 13 }) %>
+                    健康检查 URL
+                </div>
                 <div class="info-value">/health</div>
             </div>
             <div class="info-item">
-                <div class="info-label">📝 上次更新者</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'user', size: 13 }) %>
+                    上次更新者
+                </div>
                 <div class="info-value"><%= state.updatedBy || '—' %></div>
             </div>
         </div>
 
         <div id="status-banner" class="status-banner status-banner--ok">
             <% if (state.mode === 'none') { %>
-                ✅ 当前 Pod 健康 (HTTP 200 + body 包含 "HEALTHY")
+                <%- include('partials/icon', { name: 'check', size: 16 }) %>
+                当前 Pod 健康 (HTTP 200 + body 包含 "HEALTHY")
             <% } else { %>
-                ❌ 当前 Pod 已注入故障: <%= state.mode %>
+                <%- include('partials/icon', { name: 'x', size: 16 }) %>
+                当前 Pod 已注入故障: <%= state.mode %>
             <% } %>
         </div>
 
-        <h2>🧪 选择故障模式</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'terminal', size: 18 }) %>
+            选择故障模式
+        </h2>
         <p class="desc-line">
             点击任意模式即可立即注入。状态保存在本 Pod 内存中，Pod 重启后自动恢复为 <code>none</code>。
         </p>
 
         <div id="mode-list">
-    	        <% const modeDescs = {
-                    none: '正常 - 返回 200，body 包含 "HEALTHY"，F5 monitor 视为 UP',
-                    http_500: '返回 HTTP 500 - F5 monitor 收到非 200 状态码，标记 DOWN，触发 action on service down',
-                    http_503: '返回 HTTP 503 - 同上，模拟服务暂时不可用',
-                    slow: '慢响应 - 不返回任何数据直到超时，F5 monitor 因连接超时而标记 DOWN',
-                    wrong_body: '错误响应体 - 返回 200 但 body 不包含 "HEALTHY"，F5 monitor 的 Receive String 检查失败，标记 DOWN',
-                    reset: 'TCP 连接重置 - 直接销毁 socket 发送 TCP RST，F5 monitor 立即感知连接失败（最可靠）'
-                }; %>
+            <% const modeDescs = {
+                none: '正常 - 返回 200, body 包含 "HEALTHY", F5 monitor 视为 UP',
+                http_500: '返回 HTTP 500 - F5 monitor 收到非 200 状态码, 标记 DOWN, 触发 action on service down',
+                http_503: '返回 HTTP 503 - 同上, 模拟服务暂时不可用',
+                slow: '慢响应 - 不返回任何数据直到超时, F5 monitor 因连接超时而标记 DOWN',
+                wrong_body: '错误响应体 - 返回 200 但 body 不包含 "HEALTHY", F5 monitor 的 Receive String 检查失败, 标记 DOWN',
+                reset: 'TCP 连接重置 - 直接销毁 socket 发送 TCP RST, F5 monitor 立即感知连接失败 (最可靠)'
+            }; %>
             <% modes.forEach(function(m) { %>
                 <div class="mode-card <%= state.mode === m ? 'active' : '' %>" data-mode="<%= m %>">
                     <div class="mode-title">
-                        <% if (state.mode === m) { %>🔴 <% } else { %>⚪ <% } %>
+                        <% if (state.mode === m) { %>
+                            <span class="mode-dot mode-dot--active"></span>
+                        <% } else { %>
+                            <span class="mode-dot"></span>
+                        <% } %>
                         <%= m %>
                     </div>
                     <div class="mode-desc"><%= modeDescs[m] %></div>
@@ -81,15 +95,21 @@
             <label>slow 模式延迟 (ms):</label>
             <input type="number" id="slow-delay" class="slow-delay" value="<%= state.slowDelayMs %>" min="1000" step="1000">
             <button class="btn btn-sm btn-secondary" id="apply-slow-delay">应用 slow 延迟</button>
-            <span class="note">必须大于 F5 monitor 的 timeout (默认 16s = 16000ms)。此按钮只更新延迟值，不会改变当前 fault mode。</span>
+            <span class="note">必须大于 F5 monitor 的 timeout (默认 16s = 16000ms)。此按钮只更新延迟值, 不会改变当前 fault mode。</span>
         </div>
 
         <div class="alert alert-danger">
-            ⚠️ <strong>使用注意</strong>：注入故障后，F5 会在一个 monitor interval 内将该 Pod 标为 DOWN，并执行预设的 action。
-            故障模式仅影响本 Pod，其他 Pod 仍为健康状态。Pod 重启后状态自动恢复为 none。
+            <%- include('partials/icon', { name: 'alert-triangle', size: 14 }) %>
+            <div>
+                <strong>使用注意</strong> 注入故障后, F5 会在一个 monitor interval 内将该 Pod 标为 DOWN, 并执行预设的 action。
+                故障模式仅影响本 Pod, 其他 Pod 仍为健康状态。Pod 重启后状态自动恢复为 none。
+            </div>
         </div>
 
-        <h2>📊 实时连接统计 (本 Pod)</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'bar-chart-3', size: 18 }) %>
+            实时连接统计 (本 Pod)
+        </h2>
         <div class="stats-grid">
             <div class="stat-box">
                 <div class="stat-num" id="stat-ws"><%= connStats.websocket %></div>
@@ -105,18 +125,34 @@
             </div>
         </div>
 
-        <h2>📜 实时事件日志 (本 Pod)</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'list', size: 18 }) %>
+            实时事件日志 (本 Pod)
+        </h2>
         <div class="log-area event-log" id="event-log">等待事件...</div>
         <div class="mt-lg">
-            <button class="btn btn-sm btn-secondary" id="clear-log">清空显示</button>
+            <button class="btn btn-sm btn-secondary" id="clear-log">
+                <%- include('partials/icon', { name: 'x', size: 12 }) %>
+                清空显示
+            </button>
         </div>
 
-        <h2>📖 F5 HTTP Monitor 配置参考</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'file-text', size: 18 }) %>
+            F5 HTTP Monitor 配置参考
+        </h2>
         <div class="alert alert-warning">
-            在 F5 上配置 HTTP type monitor 时，建议使用以下参数（与本应用兼容）：
+            <%- include('partials/icon', { name: 'alert-triangle', size: 14 }) %>
+            <div>
+                在 F5 上配置 HTTP type monitor 时, 建议使用以下参数 (与本应用兼容):
+            </div>
         </div>
-        <pre class="f5-config">
-ltm monitor http load-balancer-test-monitor {
+        <div class="f5-config-wrap">
+            <button type="button" class="btn btn-sm btn-secondary f5-copy-btn" id="f5-copy-btn">
+                <%- include('partials/icon', { name: 'file-text', size: 12 }) %>
+                复制到剪贴板
+            </button>
+            <pre class="f5-config" id="f5-config">ltm monitor http load-balancer-test-monitor {
     defaults-from http
     interval 5
     timeout 16
@@ -124,70 +160,84 @@ ltm monitor http load-balancer-test-monitor {
     recv "HEALTHY"
     recv-disable none
 }
-        </pre>
+</pre>
+        </div>
         <p class="desc-line">
-            <strong>配置要点：</strong>
-            <code>timeout 16</code> 用于 <code>slow</code> 模式超时检测；
-            <code>recv "HEALTHY"</code> 用于 <code>wrong_body</code> 模式 Receive String 检测；
-            <code>reset</code> 模式发送 TCP RST，F5 在 TCP 层即可感知，无需特殊配置。
-            <br>⚠️ 使用 <code>HEALTHY</code> 而非 <code>OK</code>，避免与 HTTP 状态行 <code>200 OK</code> 中的 "OK" 冲突。
+            <strong>配置要点</strong>
+            <code>timeout 16</code> 用于 <code>slow</code> 模式超时检测;
+            <code>recv "HEALTHY"</code> 用于 <code>wrong_body</code> 模式 Receive String 检测;
+            <code>reset</code> 模式发送 TCP RST, F5 在 TCP 层即可感知, 无需特殊配置。
+            <br>注意: 使用 <code>HEALTHY</code> 而非 <code>OK</code>, 避免与 HTTP 状态行 <code>200 OK</code> 中的 "OK" 冲突。
         </p>
 
-        <h3>🧪 故障模式 → F5 Monitor 检测对照表</h3>
-        <table class="info-grid" style="grid-template-columns:1fr;gap:6px;">
-            <tr style="background:var(--color-bg-secondary);">
-                <th style="padding:6px 12px;">故障模式</th>
-                <th style="padding:6px 12px;">服务端行为</th>
-                <th style="padding:6px 12px;">F5 收到的响应</th>
-                <th style="padding:6px 12px;">判定</th>
-            </tr>
-            <tr>
-                <td><code>none</code></td>
-                <td>正常处理</td>
-                <td>200 + body <code>HEALTHY</code></td>
-                <td style="color:green;">✅ UP</td>
-            </tr>
-            <tr>
-                <td><code>http_500</code></td>
-                <td>返回 500 状态码</td>
-                <td>500 + body <code>ERROR-INJECTED</code></td>
-                <td style="color:red;">❌ DOWN（状态码 500 不在 1xx-3xx 范围）</td>
-            </tr>
-            <tr>
-                <td><code>http_503</code></td>
-                <td>返回 503 状态码</td>
-                <td>503 + body <code>ERROR-INJECTED</code></td>
-                <td style="color:red;">❌ DOWN（状态码 503 不在 1xx-3xx 范围）</td>
-            </tr>
-            <tr>
-                <td><code>slow</code></td>
-                <td>延迟 60s 后响应</td>
-                <td>无（monitor timeout 16s 超时关连接）</td>
-                <td style="color:red;">❌ DOWN（超时）</td>
-            </tr>
-            <tr>
-                <td><code>wrong_body</code></td>
-                <td>返回 200 但篡改 body</td>
-                <td>200 + body <code>UNHEALTHY-INJECTED</code></td>
-                <td style="color:red;">❌ DOWN（body 不含 recv "HEALTHY"）</td>
-            </tr>
-            <tr style="border-top:2px solid var(--color-accent);">
-                <td><code>reset</code> ⭐</td>
-                <td>立即销毁 TCP socket</td>
-                <td>TCP RST（连接重置）</td>
-                <td style="color:red;">❌ DOWN（TCP 连接失败，最可靠）</td>
-            </tr>
+        <h3>
+            <%- include('partials/icon', { name: 'terminal', size: 14 }) %>
+            故障模式 → F5 Monitor 检测对照表
+        </h3>
+        <table class="fault-table">
+            <thead>
+                <tr>
+                    <th>故障模式</th>
+                    <th>服务端行为</th>
+                    <th>F5 收到的响应</th>
+                    <th>判定</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>none</code></td>
+                    <td>正常处理</td>
+                    <td>200 + body <code>HEALTHY</code></td>
+                    <td class="verdict-up">UP</td>
+                </tr>
+                <tr>
+                    <td><code>http_500</code></td>
+                    <td>返回 500 状态码</td>
+                    <td>500 + body <code>ERROR-INJECTED</code></td>
+                    <td class="verdict-down">DOWN (状态码 500 不在 1xx-3xx 范围)</td>
+                </tr>
+                <tr>
+                    <td><code>http_503</code></td>
+                    <td>返回 503 状态码</td>
+                    <td>503 + body <code>ERROR-INJECTED</code></td>
+                    <td class="verdict-down">DOWN (状态码 503 不在 1xx-3xx 范围)</td>
+                </tr>
+                <tr>
+                    <td><code>slow</code></td>
+                    <td>延迟 60s 后响应</td>
+                    <td>无 (monitor timeout 16s 超时关连接)</td>
+                    <td class="verdict-down">DOWN (超时)</td>
+                </tr>
+                <tr>
+                    <td><code>wrong_body</code></td>
+                    <td>返回 200 但篡改 body</td>
+                    <td>200 + body <code>UNHEALTHY-INJECTED</code></td>
+                    <td class="verdict-down">DOWN (body 不含 recv "HEALTHY")</td>
+                </tr>
+                <tr>
+                    <td><code>reset</code> (推荐)</td>
+                    <td>立即销毁 TCP socket</td>
+                    <td>TCP RST (连接重置)</td>
+                    <td class="verdict-down">DOWN (TCP 连接失败, 最可靠)</td>
+                </tr>
+            </tbody>
         </table>
 
         <ul class="note" style="margin-top:12px;">
-            <li>⚠️ <code>/health</code> 端点运行在所有中间件之前，不会产生 Session Cookie，确保 F5 monitor 收到纯净的 HTTP 响应。</li>
-            <li>判定为 DOWN 后，F5 会执行该 pool 上配置的 "Action on Service Down"（如重置连接、邮件告警、调用 iRule 等）。</li>
-            <li>建议优先使用 <code>reset</code> 模式测试 F5 的故障检测——TCP RST 是最彻底的故障信号，不依赖 monitor 超时或字符串匹配。</li>
+            <li>注意: <code>/health</code> 端点运行在所有中间件之前, 不会产生 Session Cookie, 确保 F5 monitor 收到纯净的 HTTP 响应。</li>
+            <li>判定为 DOWN 后, F5 会执行该 pool 上配置的 "Action on Service Down" (如重置连接、邮件告警、调用 iRule 等)。</li>
+            <li>建议优先使用 <code>reset</code> 模式测试 F5 的故障检测, TCP RST 是最彻底的故障信号, 不依赖 monitor 超时或字符串匹配。</li>
         </ul>
 
         <div class="text-center mt-lg">
-            <a href="/" class="btn btn-sm btn-secondary">🏠 返回主页</a>
-            <a href="/long-connection" class="btn btn-sm btn-primary">🔌 长连接业务测试</a>
+            <a href="/" class="btn btn-sm btn-secondary">
+                <%- include('partials/icon', { name: 'home', size: 12 }) %>
+                返回主页
+            </a>
+            <a href="/long-connection" class="btn btn-sm btn-primary">
+                <%- include('partials/icon', { name: 'plug', size: 12 }) %>
+                长连接业务测试
+            </a>
         </div>
     </div>
 
@@ -203,57 +253,55 @@ ltm monitor http load-balancer-test-monitor {
     function renderBanner(mode) {
         if (mode === 'none') {
             banner.className = 'status-banner status-banner--ok';
-            banner.innerHTML = '✅ 当前 Pod 健康 (HTTP 200 + body 包含 "HEALTHY")';
+            banner.innerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 当前 Pod 健康 (HTTP 200 + body 包含 "HEALTHY")';
         } else {
             banner.className = 'status-banner status-banner--down';
-            banner.innerHTML = '❌ 当前 Pod 已注入故障: ' + mode;
+            banner.innerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> 当前 Pod 已注入故障: ' + mode;
         }
         // update cards
         modeList.querySelectorAll('.mode-card').forEach(c => {
+            const dot = c.querySelector('.mode-dot');
             if (c.dataset.mode === mode) {
                 c.classList.add('active');
-                c.querySelector('.mode-title').innerHTML = '🔴 ' + mode;
+                if (dot) dot.className = 'mode-dot mode-dot--active';
             } else {
                 c.classList.remove('active');
-                c.querySelector('.mode-title').innerHTML = '⚪ ' + c.dataset.mode;
+                if (dot) dot.className = 'mode-dot';
             }
         });
     }
 
     const logLine = makeLogger('event-log', { maxLines: 300 });
 
-    // initial log
     if (initialLog && initialLog.length) {
         initialLog.forEach(e => {
             let cls = '';
             if (e.type === 'websocket') cls = 'log-ws';
             else if (e.type === 'sse') cls = 'log-sse';
             else if (e.type === 'longPoll') cls = 'log-lp';
-            const text = `${e.action.toUpperCase()} ${e.type} from ${e.clientIP || '?'} ${e.id ? '[' + e.id + ']' : ''} ${e.elapsed ? 'elapsed=' + e.elapsed + 'ms' : ''} ${e.wait ? 'wait=' + e.wait + 'ms' : ''}`;
+            const text = (e.action || '').toUpperCase() + ' ' + e.type + ' from ' + (e.clientIP || '?') + ' ' + (e.id ? '[' + e.id + '] ' : '') + (e.elapsed ? 'elapsed=' + e.elapsed + 'ms ' : '') + (e.wait ? 'wait=' + e.wait + 'ms' : '');
             logLine(text, cls);
         });
     }
 
     document.getElementById('clear-log').onclick = () => { eventLog.innerHTML = ''; };
 
-    // click a mode card
     modeList.querySelectorAll('.mode-card').forEach(card => {
         card.onclick = () => {
             const mode = card.dataset.mode;
-            // 注入非 none 故障前必须确认（避免误点导致本 Pod 在 F5 上被立刻标 DOWN）
             if (mode !== 'none') {
                 const modeLabels = {
                     http_500: 'HTTP 500',
                     http_503: 'HTTP 503',
-                    slow: '慢响应（超时）',
-                    wrong_body: '错误响应体（Receive String 不匹配）',
-                    reset: 'TCP 连接重置（RST）',
+                    slow: '慢响应 (超时)',
+                    wrong_body: '错误响应体 (Receive String 不匹配)',
+                    reset: 'TCP 连接重置 (RST)',
                 };
                 const ok = confirm(
-                    `⚠️ 即将注入故障：${modeLabels[mode] || mode}\n\n` +
-                    `本 Pod 会在 F5 的下一个 monitor interval 内被标记为 DOWN，\n` +
-                    `并触发该 pool 配置的 Action on Service Down。\n\n` +
-                    `确定要继续吗？`
+                    '即将注入故障: ' + (modeLabels[mode] || mode) + '\n\n' +
+                    '本 Pod 会在 F5 的下一个 monitor interval 内被标记为 DOWN,\n' +
+                    '并触发该 pool 配置的 Action on Service Down。\n\n' +
+                    '确定要继续吗?'
                 );
                 if (!ok) return;
             }
@@ -269,18 +317,18 @@ ltm monitor http load-balancer-test-monitor {
                 body: JSON.stringify({ mode })
             });
             const d = await r.json();
-            if (!d.ok) { alert('设置失败: ' + d.error); return; }
+            if (!d.ok) { notice.toast('设置失败: ' + d.error, 'error'); return; }
             renderBanner(d.state.mode);
-            logLine(`⚙ FAULT changed: ${d.state.mode} by ${d.state.updatedBy}`, 'log-fault');
+            logLine('[fault] mode=' + d.state.mode + ' by ' + d.state.updatedBy, 'log-fault');
+            notice.toast('故障模式已切换: ' + d.state.mode, 'success', 2000);
         } catch (e) {
-            alert('请求失败: ' + e.message);
+            notice.toast('请求失败: ' + e.message, 'error');
         }
     }
 
     document.getElementById('apply-slow-delay').onclick = async () => {
         const v = parseInt(document.getElementById('slow-delay').value, 10);
-        if (!v || v < 1000) { alert('请输入 >= 1000 的整数'); return; }
-        // 只更新 slow 延迟，不改变 fault mode（避免误触发）
+        if (!v || v < 1000) { notice.toast('请输入 >= 1000 的整数', 'warn'); return; }
         try {
             const r = await fetch('/api/fault', {
                 method: 'POST',
@@ -288,10 +336,11 @@ ltm monitor http load-balancer-test-monitor {
                 body: JSON.stringify({ slowDelayMs: v })
             });
             const d = await r.json();
-            if (!d.ok) { alert('设置失败: ' + d.error); return; }
-            logLine(`⚙ slow 延迟已更新为 ${v} ms（当前 mode=${d.state.mode}，未改变）`, 'log-fault');
+            if (!d.ok) { notice.toast('设置失败: ' + d.error, 'error'); return; }
+            logLine('[fault] slow 延迟已更新为 ' + v + ' ms (当前 mode=' + d.state.mode + ', 未改变)', 'log-fault');
+            notice.toast('slow 延迟已更新: ' + v + ' ms', 'success', 2000);
         } catch (e) {
-            alert('请求失败: ' + e.message);
+            notice.toast('请求失败: ' + e.message, 'error');
         }
     };
 
@@ -303,16 +352,15 @@ ltm monitor http load-balancer-test-monitor {
                 const msg = JSON.parse(ev.data);
                 if (msg.type === 'fault_state') {
                     renderBanner(msg.state.mode);
-                    document.querySelector('.info-item .info-value:nth-of-type(1)').textContent = msg.state.serverIP;
+                    document.querySelector('.info-item .info-value').textContent = msg.state.serverIP;
                 } else if (msg.type === 'conn_event') {
                     const e = msg.event;
                     let cls = '';
                     if (e.type === 'websocket') cls = 'log-ws';
                     else if (e.type === 'sse') cls = 'log-sse';
                     else if (e.type === 'longPoll') cls = 'log-lp';
-                    const text = `${(e.action || '').toUpperCase()} ${e.type} from ${e.clientIP || '?'} ${e.id ? '[' + e.id + ']' : ''} ${e.elapsed ? 'elapsed=' + e.elapsed + 'ms' : ''} ${e.wait ? 'wait=' + e.wait + 'ms' : ''} ${e.totalEvents ? 'events=' + e.totalEvents : ''}`;
+                    const text = (e.action || '').toUpperCase() + ' ' + e.type + ' from ' + (e.clientIP || '?') + ' ' + (e.id ? '[' + e.id + '] ' : '') + (e.elapsed ? 'elapsed=' + e.elapsed + 'ms ' : '') + (e.wait ? 'wait=' + e.wait + 'ms ' : '') + (e.totalEvents ? 'events=' + e.totalEvents : '');
                     logLine(text, cls);
-                    // update stat boxes (best-effort)
                     if (e.type === 'websocket') {
                         if (e.action === 'open') bumpStat('stat-ws', 1);
                         if (e.action === 'close' || e.action === 'abort') bumpStat('stat-ws', -1);
@@ -334,6 +382,36 @@ ltm monitor http load-balancer-test-monitor {
         const cur = parseInt(el.textContent, 10) || 0;
         el.textContent = Math.max(0, cur + delta);
     }
+
+    // ---------------- F5 config copy button ----------------
+    const copyBtn = document.getElementById('f5-copy-btn');
+    const f5Config = document.getElementById('f5-config');
+    if (copyBtn && f5Config) {
+        copyBtn.addEventListener('click', async () => {
+            const text = f5Config.textContent;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    // fallback for older browsers / non-HTTPS
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+                const orig = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<svg class="icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 已复制';
+                setTimeout(() => { copyBtn.innerHTML = orig; }, 1500);
+            } catch (e) {
+                notice.toast('复制失败: ' + e.message, 'error');
+            }
+        });
+    }
     </script>
+    <%- include('partials/footer') %>
 </body>
 </html>

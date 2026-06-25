@@ -4,31 +4,61 @@
 
 ## 功能特性
 
-- 🖥️ **服务器信息展示**: 实时显示服务器IP地址、当前时间等信息
-- 🌐 **网络信息监控**: 显示客户端IP、X-Forwarded-For等负载均衡器相关头部信息
-- 🔐 **会话保持测试**: 支持Cookie和JSESSIONID会话保持验证
-- 📊 **会话状态监控**: 详细的会话保持状态分析和判断依据
-- 🎯 **服务器路由跟踪**: 检测请求是否路由到相同的后端服务器
-- 🔌 **长连接业务测试**: WebSocket / SSE / HTTP 长轮询三种长连接模式
-- ⚙️ **业务故障注入**: 通过修改 `/health` 响应让 F5 HTTP monitor 探测到业务故障，触发 action on service down
+**核心测试能力**：
+
+- **服务器信息展示**: 实时显示服务器 IP 地址、当前时间、客户端 IP 等
+- **网络信息监控**: 显示 X-Forwarded-For 等负载均衡器添加的头部信息
+- **会话保持测试**: 支持 Cookie 和 JSESSIONID 会话保持验证
+- **会话状态监控**: 详细的会话保持状态分析和判断依据
+- **服务器路由跟踪**: 检测请求是否路由到相同的后端服务器
+- **长连接业务测试**: WebSocket / SSE / HTTP 长轮询三种长连接模式
+- **业务故障注入**: 通过修改 `/health` 响应让 F5 HTTP monitor 探测到业务故障，触发 action on service down
+
+**前端设计**（v1.2 起）：
+
+- **暗色模式**: 自动跟随系统 + nav 右上角手动切换 + localStorage 持久化
+- **响应式布局**: 桌面 4 列功能卡 → 平板 2 列 → 手机 1 列
+- **无构建步骤**: 原生 CSS + vanilla JS + EJS partials，改完即生效
+- **无障碍**: ARIA 导航 landmark、`:focus-visible` 焦点环、`prefers-reduced-motion` 支持
+- **图标系统**: 28+ Lucide 路径 inline SVG 统一图标风格
+- **Toast 通知**: 替代浏览器原生 alert，4 种类型 + 暗色适配
+- **Footer 状态条**: 显示 Node 版本、hostname、uptime 等运行时信息
+- **F5 配置复制**: 一键复制 TMSH 配置块到剪贴板
 
 ## 项目结构
 
 ```
 .
-├── app.js                 # 主应用文件
-├── package.json           # Node.js依赖配置
-├── Dockerfile            # Docker构建文件
-├── k8s/                  # Kubernetes配置文件
-│   ├── deployment.yaml   # 部署配置
-│   └── service.yaml      # 服务配置
-├── views/                # EJS模板文件
-│   ├── index.ejs         # 主页面
-│   ├── login.ejs         # 登录页面
-│   ├── session-test.ejs  # 会话测试页面
-│   ├── long-connection.ejs  # 长连接业务测试页面
-│   └── fault-admin.ejs   # 故障注入管理页面
-└── public/               # 静态文件目录
+├── app.js                      # 主应用: 路由 + 中间件 + WS/SSE 服务器
+├── package.json                # Node.js 依赖 + npm scripts
+├── Dockerfile                  # 多阶段构建
+├── k8s/                        # Kubernetes 部署清单
+│   ├── deployment.yaml         # 3 副本 + 探针 + 阿里云私有镜像
+│   └── service.yaml            # LoadBalancer + NodePort + Ingress 例子
+├── views/                      # EJS 模板
+│   ├── index.ejs               # 首页 (hero + 4 功能卡 + 实时数据)
+│   ├── login.ejs               # 登录
+│   ├── session-test.ejs        # 会话验证
+│   ├── long-connection.ejs     # WS / SSE / 长轮询
+│   ├── fault-admin.ejs         # 故障注入管理
+│   └── partials/               # 共享片段
+│       ├── head.ejs            # <head>: meta + CSS + favicon + 主题/通知 JS
+│       ├── nav.ejs             # sticky 顶栏: 4 链接 + Pod IP + 时钟 + 主题切换
+│       ├── footer.ejs          # 底部信息条 (app 名/版本 + runtime + 资源链接)
+│       └── icon.ejs            # inline SVG 图标库 (28+ 图标, Lucide 路径)
+└── public/                     # 静态资源
+    ├── favicon.svg             # 节点图 mark
+    ├── css/
+    │   ├── base.css            # tokens + reset + nav + hero + 暗色 + footer
+    │   ├── info.css            # info-grid / info-item / info-section
+    │   ├── status.css          # status-card / status-banner / badge
+    │   ├── layout.css          # card / mode-card / stat-box / log-area / f5-config
+    │   └── notice.css          # toast 样式
+    └── js/
+        ├── clock.js            # 实时时钟
+        ├── logger.js           # 日志行 factory
+        ├── notice.js           # toast 引擎 + window.alert shim
+        └── theme.js            # 暗色模式 (早于 DOMContentLoaded 执行避免 FOUC)
 ```
 
 ## 快速开始
@@ -130,15 +160,19 @@ kubectl get svc load-balancer-test-service -o wide
 
 #### 故障模式
 
-| 模式 | 响应行为 | F5 monitor 判定 |
-|------|---------|----------------|
-| `none` | 200 + body 含 `OK` | UP |
-| `http_500` | 返回 500 | DOWN (状态码不匹配) |
-| `http_503` | 返回 503 | DOWN (状态码不匹配) |
-| `slow` | 延迟返回 (默认 60s) | DOWN (连接超时) |
-| `wrong_body` | 200 + body 不含 `OK` | DOWN (Receive String 不匹配) |
+| 模式 | 响应行为 | F5 monitor 判定 | 推荐度 |
+|------|---------|----------------|--------|
+| `none` | 200 + body `HEALTHY\n` | UP | - |
+| `http_500` | 返回 500 + `ERROR-INJECTED\n` | DOWN (状态码) | |
+| `http_503` | 返回 503 + `ERROR-INJECTED\n` | DOWN (状态码) | |
+| `slow` | 延迟 `slowDelayMs` 毫秒后 200 | DOWN (连接超时) | |
+| `wrong_body` | 200 + body `UNHEALTHY-INJECTED\n` (不含 `HEALTHY`) | DOWN (Receive String 不匹配) | |
+| `reset` | 立即销毁 TCP socket (发送 RST) | DOWN (TCP 连接失败) | **推荐** |
 
 #### F5 HTTP Monitor 配置参考
+
+> **重要**: `recv` 字符串必须是 `HEALTHY`（不是 `OK`）。应用 `/health` 在正常模式下返回 `HEALTHY\n`。
+> 如果写成 `OK`，F5 monitor 永远不通过，所有 Pod 永远 DOWN。
 
 ```
 ltm monitor http <your-monitor-name> {
@@ -146,15 +180,17 @@ ltm monitor http <your-monitor-name> {
     interval 5
     timeout 16
     send "GET /health HTTP/1.1\r\nHost: <your-virtual-host>\r\nConnection: close\r\n\r\n"
-    recv "OK"
+    recv "HEALTHY"
     recv-disable none
 }
 ```
 
+> **推荐使用 `reset` 模式测试**: TCP RST 是最彻底的故障信号，不依赖 monitor 超时或字符串匹配，F5 在 TCP 层立即感知。
+
 #### 使用步骤
 
 1. 在 F5 上为后端 pool 配置上述 HTTP type monitor。
-2. 访问 `/admin/fault` 页面，注入任意故障模式（例如 `http_503`）。
+2. 访问 `/admin/fault` 页面，注入任意故障模式（**推荐 `reset`**）。
 3. 等待 1-2 个 monitor interval，F5 会将本 Pod 标记为 DOWN。
 4. 观察 F5 上配置的 "Action on Service Down" 是否正确触发。
 5. 在管理页面将模式改回 `none`，验证 F5 将 Pod 重新标为 UP。
@@ -169,7 +205,8 @@ ltm monitor http <your-monitor-name> {
 | `GET /admin/fault` | 故障注入管理页面 |
 | `GET /api/fault` | 获取当前故障状态 (JSON) |
 | `POST /api/fault` | 设置故障模式 (JSON body: `{mode, slowDelayMs?}`) |
-| `GET /api/fault/stream` | SSE 实时推送状态变化和连接事件 |
+| `GET /api/fault/stream` | SSE 实时推送状态变化、连接事件、连接统计 |
+| `GET /api/connection-stats` | 获取当前连接计数 (JSON) |
 
 ## 环境变量
 
@@ -255,29 +292,60 @@ spec:
 
 应用提供以下信息用于监控和调试：
 
-- 服务器IP地址（识别后端Pod）
-- 会话ID（JSESSIONID）
-- 客户端IP地址
-- X-Forwarded-For头部
+**请求/会话层**：
+- 服务器 IP 地址（识别后端 Pod）
+- 客户端 IP 地址
+- X-Forwarded-For 头部
+- 会话 ID（JSESSIONID）
 - 会话创建时间
 - 服务器匹配状态
+- 所有请求 Cookie
+
+**故障注入层**：
+- 当前 Pod 故障模式（`/health` 实际响应）
+- 故障模式更新时间戳
+- 慢响应延迟配置（`slowDelayMs`）
+- 实时事件日志（SSE 推送）
+
+**连接层**（实时）：
+- 当前 WebSocket 连接数
+- 当前 SSE 连接数
+- 当前长轮询连接数
+- 每条连接的事件日志（open/close + 客户端 IP + elapsed）
+
+**运行时层**（footer 状态条）：
+- Node.js 版本
+- 操作系统与架构
+- Pod 主机名
+- 进程启动时长
 
 ## 故障排除
 
 ### 会话丢失问题
-1. 检查JSESSIONID Cookie是否正确设置
+1. 检查 JSESSIONID Cookie 是否正确设置
 2. 验证会话超时配置
 3. 检查负载均衡器会话粘性配置
 
 ### 服务器路由问题
-1. 确认Pod副本数量
-2. 检查Service配置
+1. 确认 Pod 副本数量
+2. 检查 Service 配置
 3. 验证负载均衡器配置
 
 ### 网络问题
-1. 检查X-Forwarded-For头部设置
-2. 验证客户端IP获取
+1. 检查 X-Forwarded-For 头部设置
+2. 验证 `app.set("trust proxy", true)` 是否保留（必须保留才能让 `req.ip` 拿到真实客户端 IP）
 3. 确认负载均衡器代理配置
+
+### F5 monitor 永远 DOWN
+1. **检查 `recv` 字符串**: 必须是 `HEALTHY`（不是 `OK`）。应用返回 `HEALTHY\n`。
+2. **检查 `send` 字符串**: 必须包含 `Connection: close`，避免 F5 收到不完整的 chunked 响应。
+3. **检查 `timeout`**: 必须大于 `slowDelayMs`（默认 16s > 60s 默认延迟，但 `slowDelayMs` 可调）。
+4. **检查 F5 health monitor 探测是否经过反向代理**: 经过的话看是否携带正确 Host 头。
+
+### 主题/Toast/UI 不工作
+1. 确认 `public/css/notice.css`、`public/js/notice.js`、`public/js/theme.js` 三个资源能正常加载（看 Network 面板 200）
+2. 暗色模式偏好存 `localStorage['lb-test-theme']`，手动清除可重置
+3. Toast 不显示时，检查浏览器是否禁用了 JS 或扩展屏蔽了 DOM 操作
 
 ## 开发与贡献
 

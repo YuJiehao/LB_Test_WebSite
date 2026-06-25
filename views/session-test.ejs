@@ -1,122 +1,140 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="负载均衡测试站点 - 会话保持验证">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>📊</text></svg>">
-    <title>会话保持测试 - 负载均衡测试站点</title>
-    <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/info.css">
-    <link rel="stylesheet" href="/css/status.css">
-    <style>
-        .session-container { max-width: 900px; margin: 0 auto; }
-        .ua-value { font-size: 12px; }
-    </style>
+    <%- include('partials/head', {
+        title: '会话保持测试 - 负载均衡测试站点',
+        extraCss: '<style>.session-container { max-width: 1000px; margin: 0 auto; } .ua-value { font-size: 12px; }</style>'
+    }) %>
 </head>
 <body>
-    <div class="container session-container">
-        <h1>📊 会话保持测试结果</h1>
+    <%- include('partials/nav', { active: 'session', serverIP: serverIP }) %>
 
-        <!-- 会话状态总览 -->
+    <div class="container session-container">
+        <h1>
+            <%- include('partials/icon', { name: 'bar-chart-3', size: 22 }) %>
+            会话保持测试结果
+        </h1>
+
         <% if (sessionPersistent) { %>
             <div class="status-card status-card--success">
-                <h3>✅ 会话保持成功</h3>
+                <h3>
+                    <%- include('partials/icon', { name: 'check', size: 16 }) %>
+                    会话保持成功
+                </h3>
                 <p>用户 <strong><%= username %></strong> 的会话正常保持，JSESSIONID: <code><%= sessionId %></code></p>
                 <p>登录时间: <%= loginTime %></p>
             </div>
         <% } else { %>
             <div class="status-card status-card--danger">
-                <h3>❌ 会话保持失败</h3>
+                <h3>
+                    <%- include('partials/icon', { name: 'x', size: 16 }) %>
+                    会话保持失败
+                </h3>
                 <p>检测到会话丢失或未登录状态</p>
             </div>
         <% } %>
 
-        <!-- 服务器匹配状态 -->
         <div class="server-match <%= serverMatches ? 'server-match--yes' : 'server-match--no' %>">
             <% if (serverMatches) { %>
-                🎯 <strong>服务器匹配:</strong> 请求路由到同一服务器
+                <%- include('partials/icon', { name: 'check', size: 20 }) %>
+                <strong>服务器匹配:</strong> 请求路由到同一服务器
             <% } else { %>
-                ⚠️ <strong>服务器不匹配:</strong> 请求被路由到不同服务器
+                <%- include('partials/icon', { name: 'alert-triangle', size: 20 }) %>
+                <strong>服务器不匹配:</strong> 请求被路由到不同服务器
             <% } %>
         </div>
 
-        <!-- 详细信息网格 -->
         <div class="info-grid info-grid--wide">
-            <!-- 会话信息 -->
             <div class="info-section">
-                <div class="section-title">🔑 会话信息</div>
+                <div class="section-title">
+                    <%- include('partials/icon', { name: 'key', size: 16 }) %>
+                    会话信息
+                </div>
                 <div class="info-item">
-                    <div class="info-label">JSESSIONID:</div>
+                    <div class="info-label">JSESSIONID</div>
                     <div class="info-value"><%= sessionId %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">登录用户:</div>
+                    <div class="info-label">登录用户</div>
                     <div class="info-value"><%= username || '未登录' %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">登录时间:</div>
+                    <div class="info-label">登录时间</div>
                     <div class="info-value"><%= loginTime || '未登录' %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">会话状态:</div>
+                    <div class="info-label">会话状态</div>
                     <div class="info-value <%= sessionPersistent ? 'info-value--ok' : 'info-value--down' %>">
-                        <% if (sessionPersistent) { %>✅ 活跃 <% } else { %>❌ 无效 <% } %>
+                        <% if (sessionPersistent) { %>
+                            <%- include('partials/icon', { name: 'check', size: 13 }) %> 活跃
+                        <% } else { %>
+                            <%- include('partials/icon', { name: 'x', size: 13 }) %> 无效
+                        <% } %>
                     </div>
                 </div>
             </div>
 
-            <!-- 服务器信息 -->
             <div class="info-section">
-                <div class="section-title">🖥️ 服务器信息</div>
+                <div class="section-title">
+                    <%- include('partials/icon', { name: 'server', size: 16 }) %>
+                    服务器信息
+                </div>
                 <div class="info-item">
-                    <div class="info-label">当前服务器IP:</div>
+                    <div class="info-label">当前服务器IP</div>
                     <div class="info-value"><%= currentServer %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">会话创建服务器IP:</div>
+                    <div class="info-label">会话创建服务器IP</div>
                     <div class="info-value"><%= sessionServer || '未知' %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">服务器匹配:</div>
+                    <div class="info-label">服务器匹配</div>
                     <div class="info-value <%= serverMatches ? 'info-value--ok' : 'info-value--down' %>">
-                        <% if (serverMatches) { %>✅ 匹配 <% } else { %>❌ 不匹配 <% } %>
+                        <% if (serverMatches) { %>
+                            <%- include('partials/icon', { name: 'check', size: 13 }) %> 匹配
+                        <% } else { %>
+                            <%- include('partials/icon', { name: 'x', size: 13 }) %> 不匹配
+                        <% } %>
                     </div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">当前时间:</div>
+                    <div class="info-label">当前时间</div>
                     <div class="info-value live-clock"><%= currentTime %></div>
                 </div>
             </div>
 
-            <!-- 网络信息 -->
             <div class="info-section">
-                <div class="section-title">🌐 网络信息</div>
+                <div class="section-title">
+                    <%- include('partials/icon', { name: 'globe', size: 16 }) %>
+                    网络信息
+                </div>
                 <div class="info-item">
-                    <div class="info-label">客户端IP:</div>
+                    <div class="info-label">客户端IP</div>
                     <div class="info-value"><%= clientIP %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">X-Forwarded-For:</div>
+                    <div class="info-label">X-Forwarded-For</div>
                     <div class="info-value"><%= headers['x-forwarded-for'] || '未设置' %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">X-Real-IP:</div>
+                    <div class="info-label">X-Real-IP</div>
                     <div class="info-value"><%= headers['x-real-ip'] || '未设置' %></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">User-Agent:</div>
+                    <div class="info-label">User-Agent</div>
                     <div class="info-value ua-value"><%= headers['user-agent'] %></div>
                 </div>
             </div>
 
-            <!-- Cookie信息 -->
             <div class="info-section">
-                <div class="section-title">🍪 Cookie信息</div>
+                <div class="section-title">
+                    <%- include('partials/icon', { name: 'cookie', size: 16 }) %>
+                    Cookie信息
+                </div>
                 <% if (Object.keys(cookies).length > 0) { %>
                     <% Object.entries(cookies).forEach(([key, value]) => { %>
                         <div class="info-item">
-                            <div class="info-label"><%= key %>:</div>
+                            <div class="info-label"><%= key %></div>
                             <div class="info-value"><%= value %></div>
                         </div>
                     <% }) %>
@@ -128,33 +146,41 @@
             </div>
         </div>
 
-        <!-- 操作按钮 -->
         <div class="text-center mt-xl">
-            <button class="btn btn-primary" onclick="location.reload()">🔄 刷新测试</button>
-            <a href="/" class="btn btn-secondary">🏠 返回主页</a>
-            <a href="/logout" class="btn btn-danger">🚪 退出登录</a>
+            <button class="btn btn-primary" onclick="location.reload()">
+                <%- include('partials/icon', { name: 'refresh-cw', size: 14 }) %>
+                刷新测试
+            </button>
+            <a href="/" class="btn btn-secondary">
+                <%- include('partials/icon', { name: 'home', size: 14 }) %>
+                返回主页
+            </a>
+            <a href="/logout" class="btn btn-danger">
+                <%- include('partials/icon', { name: 'log-out', size: 14 }) %>
+                退出登录
+            </a>
         </div>
 
-        <!-- 测试说明 -->
         <div class="help-block">
-            <h4>🔍 会话保持判断依据</h4>
+            <h4>会话保持判断依据</h4>
             <ul>
-                <li><strong>JSESSIONID持久性:</strong> 多次请求中会话ID保持一致</li>
-                <li><strong>服务器路由:</strong> 检查请求是否路由到相同的后端服务器</li>
-                <li><strong>会话数据完整性:</strong> 登录信息和会话数据是否完整保存</li>
-                <li><strong>Cookie传递:</strong> 会话Cookie是否正确传递和识别</li>
+                <li><strong>JSESSIONID 持久性</strong> 多次请求中会话ID保持一致</li>
+                <li><strong>服务器路由</strong> 检查请求是否路由到相同的后端服务器</li>
+                <li><strong>会话数据完整性</strong> 登录信息和会话数据是否完整保存</li>
+                <li><strong>Cookie 传递</strong> 会话Cookie是否正确传递和识别</li>
             </ul>
 
-            <h4>💡 负载均衡测试建议</h4>
+            <h4>负载均衡测试建议</h4>
             <ul>
                 <li>多次刷新此页面，观察服务器IP是否变化</li>
                 <li>如果启用了会话粘性，服务器IP应保持一致</li>
                 <li>如果没有会话粘性，但会话保持正常，说明会话共享配置正确</li>
-                <li>观察X-Forwarded-For等负载均衡器添加的头部信息</li>
+                <li>观察 X-Forwarded-For 等负载均衡器添加的头部信息</li>
             </ul>
         </div>
     </div>
 
     <script src="/js/clock.js"></script>
+    <%- include('partials/footer') %>
 </body>
 </html>

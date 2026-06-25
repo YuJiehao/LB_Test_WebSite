@@ -17,6 +17,35 @@ app.set("trust proxy", true);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+// ------------------------------------------------------------------------
+// Expose runtime info to ALL EJS templates via res.locals
+// (avoids passing the same data to every render() call)
+// ------------------------------------------------------------------------
+const PKG = require("./package.json");
+function formatUptime(seconds) {
+    const s = Math.floor(seconds);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${sec}s`;
+    return `${sec}s`;
+}
+app.use((req, res, next) => {
+    res.locals.appInfo = {
+        name: PKG.name,
+        version: PKG.version,
+        description: PKG.description,
+        node: process.version,
+        platform: `${process.platform} ${process.arch}`,
+        hostname: os.hostname(),
+        uptime: formatUptime(process.uptime()),
+        startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+    };
+    res.locals.repoUrl = "https://github.com/YuJiehao/LB_Test_WebSite";
+    next();
+});
+
 // ========================================================================
 // ⚠️ /health MUST be declared BEFORE session / cookie / body-parser middleware.
 // This prevents F5 monitor probes from creating spurious sessions and
@@ -321,6 +350,7 @@ app.get("/", (req, res) => {
 
 app.get("/login", (req, res) => {
     res.render("login", {
+        serverIP: getServerIP(),
         sessionId: req.sessionID,
         error: null,
     });
@@ -338,6 +368,7 @@ app.post("/login", (req, res) => {
         res.redirect("/session-test");
     } else {
         res.render("login", {
+            serverIP: getServerIP(),
             sessionId: req.sessionID,
             error: "Please enter both username and password",
         });
@@ -356,6 +387,7 @@ app.get("/session-test", (req, res) => {
     const serverMatches = sessionServer === currentServer;
 
     res.render("session-test", {
+        serverIP,
         sessionId: req.sessionID,
         isLoggedIn: req.session.isLoggedIn || false,
         username: req.session.username || null,

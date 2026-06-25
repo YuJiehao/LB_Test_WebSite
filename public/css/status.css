@@ -3,7 +3,7 @@
  * ========================================================================= */
 .status-card {
     padding: 20px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-card);
     margin-bottom: 20px;
     border-left: 5px solid;
 }
@@ -30,7 +30,7 @@
 .status-banner {
     text-align: center;
     padding: 16px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-card);
     margin: 16px 0 24px;
     font-size: 18px;
     font-weight: bold;
@@ -51,7 +51,7 @@
     font-size: 24px;
     text-align: center;
     padding: 20px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-card);
     margin-bottom: 20px;
 }
 .server-match--yes {
@@ -77,7 +77,7 @@
 /* —— 简易横幅（index/login 用）—— */
 .status {
     padding: 10px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-input);
     margin-bottom: 20px;
 }
 .status--success {

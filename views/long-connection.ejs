@@ -1,51 +1,67 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="长连接业务测试 - WebSocket / SSE / 长轮询">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔌</text></svg>">
-    <title>长连接业务测试 - 负载均衡测试站点</title>
-    <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/info.css">
-    <link rel="stylesheet" href="/css/status.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <style>
-        .lc-container { max-width: 1100px; margin: 0 auto; }
-        .ws-interval { width: 120px; }
-        .lp-wait     { width: 140px; }
-    </style>
+    <%- include('partials/head', {
+        title: '长连接业务测试 - 负载均衡测试站点',
+        extraCss: '<style>.lc-container { max-width: 1100px; margin: 0 auto; } .ws-interval { width: 120px; } .lp-wait { width: 140px; }</style>'
+    }) %>
 </head>
 <body>
+    <%- include('partials/nav', { active: 'long', serverIP: serverIP }) %>
+
     <div class="container lc-container">
-        <h1>🔌 长连接业务测试</h1>
+        <h1>
+            <%- include('partials/icon', { name: 'plug', size: 22 }) %>
+            长连接业务测试
+        </h1>
 
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">🖥️ 当前服务器IP</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'server', size: 13 }) %>
+                    当前服务器IP
+                </div>
                 <div class="info-value"><%= serverIP %></div>
             </div>
             <div class="info-item">
-                <div class="info-label">⏰ 当前时间</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'clock', size: 13 }) %>
+                    当前时间
+                </div>
                 <div class="info-value live-clock"><%= currentTime %></div>
             </div>
             <div class="info-item">
-                <div class="info-label">🔑 会话ID</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'key', size: 13 }) %>
+                    会话ID
+                </div>
                 <div class="info-value"><%= sessionId %></div>
             </div>
             <div class="info-item <%= faultMode === 'none' ? 'info-item--ok' : 'info-item--down' %>">
-                <div class="info-label">🎯 本Pod故障状态</div>
+                <div class="info-label">
+                    <%- include('partials/icon', { name: 'zap', size: 13 }) %>
+                    本Pod故障状态
+                </div>
                 <div class="info-value">
                     <% if (faultMode === 'none') { %>
-                        <span class="badge badge--ok">正常</span>
+                        <span class="badge badge--ok">
+                            <%- include('partials/icon', { name: 'check', size: 11 }) %>
+                            正常
+                        </span>
                     <% } else { %>
-                        <span class="badge badge--down">已注入：<%= faultMode %></span>
+                        <span class="badge badge--down">
+                            <%- include('partials/icon', { name: 'x', size: 11 }) %>
+                            已注入: <%= faultMode %>
+                        </span>
                     <% } %>
                 </div>
             </div>
         </div>
 
-        <h2>📊 实时连接统计</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'bar-chart-3', size: 18 }) %>
+            实时连接统计
+        </h2>
         <div class="stats-grid">
             <div class="stat-box">
                 <div class="stat-num" id="stat-ws">0</div>
@@ -62,19 +78,31 @@
         </div>
         <div class="note">实时通过 SSE 推送（仅本 Pod 的统计，连接事件触发时立即更新）。</div>
 
-        <h2>1️⃣ WebSocket 长连接</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'zap', size: 18 }) %>
+            WebSocket 长连接
+        </h2>
         <div class="card">
             <p>建立到 <code>ws://&lt;host&gt;/ws</code> 的 WebSocket 连接，可发送任意消息，服务器会回显并周期性推送 tick。可用于测试 F5 的 WebSocket 透传、连接保持时长、OneConnect 等。</p>
             <div class="form-row">
                 <label>推送间隔 (ms):</label>
                 <input type="number" id="ws-interval" class="ws-interval" value="2000" min="500" step="500">
-                <button class="btn btn-sm btn-success" id="ws-connect">🔌 建立连接</button>
-                <button class="btn btn-sm btn-danger" id="ws-disconnect" disabled>❌ 断开</button>
+                <button class="btn btn-sm btn-success" id="ws-connect">
+                    <%- include('partials/icon', { name: 'plug', size: 12 }) %>
+                    建立连接
+                </button>
+                <button class="btn btn-sm btn-danger" id="ws-disconnect" disabled>
+                    <%- include('partials/icon', { name: 'x', size: 12 }) %>
+                    断开
+                </button>
             </div>
             <div class="form-row" style="margin-top:8px;">
                 <label>消息内容:</label>
                 <input type="text" id="ws-msg" placeholder="输入消息，回车发送..." style="flex:1;max-width:400px;" disabled>
-                <button class="btn btn-sm btn-primary" id="ws-send" disabled>📨 发送</button>
+                <button class="btn btn-sm btn-primary" id="ws-send" disabled>
+                    <%- include('partials/icon', { name: 'send', size: 12 }) %>
+                    发送
+                </button>
             </div>
             <div class="form-row" style="margin-top:8px;">
                 <label><input type="checkbox" id="ws-auto-send" disabled> 自动发送</label>
@@ -83,39 +111,84 @@
                 <span class="note" id="ws-auto-status">已发送: 0</span>
             </div>
             <div class="info-grid" style="margin-top:8px;">
-                <div class="info-item"><div class="info-label">🔗 连接ID</div><div class="info-value" id="ws-conn-id">—</div></div>
-                <div class="info-item"><div class="info-label">🖥️ 连接Pod IP</div><div class="info-value" id="ws-conn-ip">—</div></div>
-                <div class="info-item"><div class="info-label">🔐 协议</div><div class="info-value" id="ws-proto">—</div></div>
-                <div class="info-item"><div class="info-label">📨 总消息数</div><div class="info-value" id="ws-msg-count">0</div></div>
+                <div class="info-item">
+                    <div class="info-label">
+                        <%- include('partials/icon', { name: 'plug', size: 12 }) %>
+                        连接ID
+                    </div>
+                    <div class="info-value" id="ws-conn-id">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">
+                        <%- include('partials/icon', { name: 'server', size: 12 }) %>
+                        连接Pod IP
+                    </div>
+                    <div class="info-value" id="ws-conn-ip">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">
+                        <%- include('partials/icon', { name: 'shield', size: 12 }) %>
+                        协议
+                    </div>
+                    <div class="info-value" id="ws-proto">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">
+                        <%- include('partials/icon', { name: 'send', size: 12 }) %>
+                        总消息数
+                    </div>
+                    <div class="info-value" id="ws-msg-count">0</div>
+                </div>
             </div>
             <div class="log-area" id="ws-log">等待连接...</div>
         </div>
 
-        <h2>2️⃣ Server-Sent Events (SSE)</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'activity', size: 18 }) %>
+            Server-Sent Events (SSE)
+        </h2>
         <div class="card">
             <p>建立到 <code>/sse</code> 的 SSE 连接，服务器周期性推送事件。用于测试 F5 的 HTTP 长连接 / chunked 响应保持。</p>
             <div class="form-row">
                 <label>推送间隔 (ms):</label>
                 <input type="number" id="sse-interval" class="ws-interval" value="1000" min="500" step="500">
-                <button class="btn btn-sm btn-success" id="sse-connect">📡 建立连接</button>
-                <button class="btn btn-sm btn-danger" id="sse-disconnect" disabled>❌ 断开</button>
+                <button class="btn btn-sm btn-success" id="sse-connect">
+                    <%- include('partials/icon', { name: 'activity', size: 12 }) %>
+                    建立连接
+                </button>
+                <button class="btn btn-sm btn-danger" id="sse-disconnect" disabled>
+                    <%- include('partials/icon', { name: 'x', size: 12 }) %>
+                    断开
+                </button>
             </div>
             <div class="log-area" id="sse-log">等待连接...</div>
         </div>
 
-        <h2>3️⃣ HTTP 长轮询</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'clock', size: 18 }) %>
+            HTTP 长轮询
+        </h2>
         <div class="card">
             <p>向 <code>/long-poll?wait=&lt;ms&gt;</code> 发起请求，服务器阻塞指定毫秒后才响应。可测试 F5 的连接池管理、长连接超时、空闲连接清理等。</p>
             <div class="form-row">
                 <label>等待时长 (ms, 最多 120000):</label>
                 <input type="number" id="lp-wait" class="lp-wait" value="30000" min="1000" max="120000" step="1000">
-                <button class="btn btn-sm btn-primary" id="lp-start">🚀 发起长轮询</button>
-                <button class="btn btn-sm btn-danger" id="lp-abort" disabled>🛑 取消</button>
+                <button class="btn btn-sm btn-primary" id="lp-start">
+                    <%- include('partials/icon', { name: 'rocket', size: 12 }) %>
+                    发起长轮询
+                </button>
+                <button class="btn btn-sm btn-danger" id="lp-abort" disabled>
+                    <%- include('partials/icon', { name: 'x', size: 12 }) %>
+                    取消
+                </button>
             </div>
             <div class="log-area" id="lp-log">等待请求...</div>
         </div>
 
-        <h2>ℹ️ F5 长连接测试说明</h2>
+        <h2>
+            <%- include('partials/icon', { name: 'file-text', size: 18 }) %>
+            F5 长连接测试说明
+        </h2>
         <div class="card">
             <ul>
                 <li><strong>WebSocket</strong>：F5 透传 WS 升级请求，连接会一直保持。建议在 F5 上配置 <em>OneConnect</em> profile，并观察 F5 是否会主动断开空闲 WS。</li>
@@ -126,8 +199,14 @@
         </div>
 
         <div class="text-center mt-lg">
-            <a href="/" class="btn btn-sm btn-secondary">🏠 返回主页</a>
-            <a href="/admin/fault" class="btn btn-sm btn-primary">⚙️ 故障注入管理</a>
+            <a href="/" class="btn btn-sm btn-secondary">
+                <%- include('partials/icon', { name: 'home', size: 12 }) %>
+                返回主页
+            </a>
+            <a href="/admin/fault" class="btn btn-sm btn-primary">
+                <%- include('partials/icon', { name: 'settings', size: 12 }) %>
+                故障注入管理
+            </a>
         </div>
     </div>
 
@@ -140,7 +219,7 @@
         document.getElementById('stat-sse').textContent = sse || 0;
         document.getElementById('stat-lp').textContent = lp || 0;
     }
-    // 订阅 /api/fault/stream，复用同一个 SSE 通道（type === 'conn_stats' 时只更新统计）
+    // 订阅 /api/fault/stream, 复用同一个 SSE 通道 (type === 'conn_stats' 时只更新统计)
     try {
         const statsEs = new EventSource('/api/fault/stream');
         statsEs.onmessage = (ev) => {
@@ -160,14 +239,14 @@
     const lpAppend = makeLogger('lp-log');
 
     // ---------------- WebSocket ----------------
-    // 注意：WebSocket 不会自动重连。设计意图是让用户观察 F5 action on service down
-    // 为 drop 时的行为——F5 静默丢包，客户端 TCP 层既收不到 RST 也收不到 FIN，
-    // 只有 TCP keepalive 超时后连接才会断开。不自动重连可以清晰观察这一过程。
+    // 注意: WebSocket 不会自动重连. 设计意图是让用户观察 F5 action on service down
+    // 为 drop 时的行为: F5 静默丢包, 客户端 TCP 层既收不到 RST 也收不到 FIN,
+    // 只有 TCP keepalive 超时后连接才会断开. 不自动重连可以清晰观察这一过程.
     let ws = null;
     let wsConnId = '';
     let wsMsgCount = 0;
-    let wsAutoTimer = null;   // 自动发送的 setInterval ID
-    let wsAutoCount = 0;       // 自动发送计数器
+    let wsAutoTimer = null;
+    let wsAutoCount = 0;
 
     function buildWsUrl() {
         const interval = document.getElementById('ws-interval').value || 2000;
@@ -212,21 +291,21 @@
         ws.send(msg);
         wsMsgCount++;
         document.getElementById('ws-msg-count').textContent = wsMsgCount;
-        wsAppend((fromAuto ? '🔄 ' : '➡ ') + msg, 'log-ws');
+        wsAppend((fromAuto ? '[auto] ' : '[send] ') + msg, 'log-ws');
     }
 
     function startAutoSend() {
         if (wsAutoTimer) return;
         const interval = Math.max(500, parseInt(document.getElementById('ws-auto-interval').value, 10) || 3000);
         wsAutoTimer = setInterval(() => sendWsMessage(true), interval);
-        wsAppend('🔄 自动发送已启动 (间隔 ' + interval + 'ms)', 'log-ws');
+        wsAppend('[auto] 自动发送已启动 (间隔 ' + interval + 'ms)', 'log-ws');
     }
 
     function stopAutoSend() {
         if (wsAutoTimer) {
             clearInterval(wsAutoTimer);
             wsAutoTimer = null;
-            wsAppend('⏸ 自动发送已停止 (共发送 ' + wsAutoCount + ' 条)', 'log-ws');
+            wsAppend('[auto] 自动发送已停止 (共发送 ' + wsAutoCount + ' 条)', 'log-ws');
         }
     }
 
@@ -234,15 +313,13 @@
         if (ws) return;
         wsAutoCount = 0;
         const url = buildWsUrl();
-        // 显示实际使用的 WebSocket 协议（ws=明文, wss=TLS加密）
         document.getElementById('ws-proto').textContent = url.startsWith('wss') ? 'WSS (TLS加密)' : 'WS (明文)';
-        wsAppend(`正在连接 ${url} ...`, 'log-ws');
+        wsAppend('正在连接 ' + url + ' ...', 'log-ws');
         ws = new WebSocket(url);
         ws.onopen = () => {
-            wsAppend('✅ 连接已建立，等待服务端欢迎消息...', 'log-ws');
+            wsAppend('连接已建立, 等待服务端欢迎消息...', 'log-ws');
             setWsButtons(true);
             document.getElementById('ws-msg').focus();
-            // 如果连接前已经勾了自动发送，自动启动
             if (document.getElementById('ws-auto-send').checked) {
                 startAutoSend();
             }
@@ -252,80 +329,57 @@
             document.getElementById('ws-msg-count').textContent = wsMsgCount;
             try {
                 const data = JSON.parse(ev.data);
-                // welcome 消息：提取连接 ID 和服务器 IP
                 if (data.type === 'welcome') {
                     wsConnId = data.id;
                     updateWsInfo(data.id, data.serverIP);
-                    wsAppend(`👋 欢迎 [${data.id}] Pod=${data.serverIP} client=${data.clientIP}`, 'log-ws');
+                    wsAppend('[welcome] [' + data.id + '] Pod=' + data.serverIP + ' client=' + data.clientIP, 'log-ws');
                     return;
                 }
-                // echo 消息：服务器回显（request-response 复用同一连接）
                 if (data.type === 'echo') {
-                    wsAppend(`⬅ echo [#${data.seq}] Pod=${data.serverIP} preview="${data.echoPreview}"`, 'log-ws');
+                    wsAppend('[echo #' + data.seq + '] Pod=' + data.serverIP + ' preview="' + data.echoPreview + '"', 'log-ws');
                     return;
                 }
-                // tick 消息：服务器主动推送
                 if (data.type === 'tick') {
-                    wsAppend(`⬅ tick [#${data.seq}] Pod=${data.serverIP} time=${data.time}`, 'log-ws');
+                    wsAppend('[tick #' + data.seq + '] Pod=' + data.serverIP + ' time=' + data.time, 'log-ws');
                     return;
                 }
-                // fault 消息：故障注入导致服务端暂停/恢复 tick
                 if (data.type === 'fault') {
                     if (data.action === 'pause') {
-                        wsAppend(`⏸ 故障注入 (${data.mode})，服务端 tick 已暂停 — 模拟双方静默状态`, 'log-error');
+                        wsAppend('[fault] 故障注入 (' + data.mode + '), 服务端 tick 已暂停, 模拟双方静默状态', 'log-error');
                     } else if (data.action === 'resume') {
-                        wsAppend('▶ 故障恢复 (none)，服务端 tick 已恢复', 'log-ws');
+                        wsAppend('[fault] 故障恢复 (none), 服务端 tick 已恢复', 'log-ws');
                     }
                     return;
                 }
             } catch (e) { /* not JSON */ }
-            // 非 JSON 或无法解析的消息
-            wsAppend('⬅ ' + ev.data, 'log-ws');
+            wsAppend('[recv] ' + ev.data, 'log-ws');
         };
-        ws.onerror = (e) => wsAppend('⚠ error: ' + (e.message || e), 'log-error');
+        ws.onerror = (e) => wsAppend('[error] ' + (e.message || e), 'log-error');
         ws.onclose = (ev) => {
             stopAutoSend();
-            wsAppend(`🔌 连接关闭 code=${ev.code} reason="${ev.reason || ''}"`, 'log-ws');
+            wsAppend('[close] code=' + ev.code + ' reason="' + (ev.reason || '') + '"', 'log-ws');
             updateWsInfo('(已断开)', '(已断开)');
             document.getElementById('ws-proto').textContent = '—';
             ws = null;
             wsConnId = '';
             setWsButtons(false);
-            // 不做自动重连：F5 执行 action on service down=drop 时静默丢包，
-            // 客户端可能很久才会感知（TCP keepalive 超时或发送数据时发现）。
-            // 如需重新建立连接，请手动点击「建立连接」按钮。
         };
     }
 
-    document.getElementById('ws-connect').onclick = () => {
-        connectWs();
-    };
-    document.getElementById('ws-disconnect').onclick = () => {
-        if (ws) ws.close();
-    };
-    document.getElementById('ws-send').onclick = () => {
-        sendWsMessage(false);
-    };
+    document.getElementById('ws-connect').onclick = () => { connectWs(); };
+    document.getElementById('ws-disconnect').onclick = () => { if (ws) ws.close(); };
+    document.getElementById('ws-send').onclick = () => { sendWsMessage(false); };
     document.getElementById('ws-msg').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             sendWsMessage(false);
         }
     });
-    // 自动发送开关
     document.getElementById('ws-auto-send').addEventListener('change', function() {
-        if (this.checked) {
-            startAutoSend();
-        } else {
-            stopAutoSend();
-        }
+        if (this.checked) { startAutoSend(); } else { stopAutoSend(); }
     });
-    // 自动发送间隔变更时，如果正在运行则重启
     document.getElementById('ws-auto-interval').addEventListener('change', function() {
-        if (wsAutoTimer) {
-            stopAutoSend();
-            startAutoSend();
-        }
+        if (wsAutoTimer) { stopAutoSend(); startAutoSend(); }
     });
 
     // ---------------- SSE ----------------
@@ -333,18 +387,18 @@
     document.getElementById('sse-connect').onclick = () => {
         if (es) return;
         const interval = document.getElementById('sse-interval').value || 1000;
-        sseAppend(`正在连接 /sse?interval=${interval} ...`, 'log-sse');
-        es = new EventSource(`/sse?interval=${interval}`);
+        sseAppend('正在连接 /sse?interval=' + interval + ' ...', 'log-sse');
+        es = new EventSource('/sse?interval=' + interval);
         es.onopen = () => {
-            sseAppend('✅ SSE 已建立', 'log-sse');
+            sseAppend('SSE 已建立', 'log-sse');
             document.getElementById('sse-connect').disabled = true;
             document.getElementById('sse-disconnect').disabled = false;
         };
         es.onmessage = (ev) => {
-            sseAppend('⬅ ' + ev.data, 'log-sse');
+            sseAppend('[recv] ' + ev.data, 'log-sse');
         };
         es.onerror = () => {
-            sseAppend('⚠ SSE 错误 (可能连接已断开)', 'log-error');
+            sseAppend('[error] SSE 错误 (可能连接已断开)', 'log-error');
             es.close();
             es = null;
             document.getElementById('sse-connect').disabled = false;
@@ -362,16 +416,16 @@
     document.getElementById('lp-start').onclick = () => {
         if (lpCtrl) return;
         const wait = Math.max(1000, Math.min(120000, parseInt(document.getElementById('lp-wait').value, 10) || 30000));
-        lpAppend(`发起 /long-poll?wait=${wait} ...`, 'log-lp');
+        lpAppend('发起 /long-poll?wait=' + wait + ' ...', 'log-lp');
         const start = Date.now();
         lpCtrl = new AbortController();
-        fetch(`/long-poll?wait=${wait}`, { signal: lpCtrl.signal })
+        fetch('/long-poll?wait=' + wait, { signal: lpCtrl.signal })
             .then(r => r.json())
             .then(d => {
-                lpAppend(`✅ 响应：实际 ${Date.now() - start} ms，${JSON.stringify(d)}`, 'log-lp');
+                lpAppend('[ok] 响应: 实际 ' + (Date.now() - start) + ' ms, ' + JSON.stringify(d), 'log-lp');
             })
             .catch(e => {
-                lpAppend(`❌ ${e.name}: ${e.message}`, 'log-error');
+                lpAppend('[err] ' + e.name + ': ' + e.message, 'log-error');
             })
             .finally(() => {
                 lpCtrl = null;
@@ -381,9 +435,8 @@
         document.getElementById('lp-start').disabled = true;
         document.getElementById('lp-abort').disabled = false;
     };
-    document.getElementById('lp-abort').onclick = () => {
-        if (lpCtrl) lpCtrl.abort();
-    };
+    document.getElementById('lp-abort').onclick = () => { if (lpCtrl) lpCtrl.abort(); };
     </script>
+    <%- include('partials/footer') %>
 </body>
 </html>

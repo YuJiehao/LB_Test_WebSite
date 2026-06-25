@@ -1,62 +1,68 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="负载均衡测试站点 - 登录">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔐</text></svg>">
-    <title>登录 - 负载均衡测试站点</title>
-    <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/status.css">
-    <style>
-        .login-container { max-width: 500px; margin: 50px auto; }
-        .session-info {
-            background-color: var(--color-bg-card);
-            padding: 10px;
-            border-radius: var(--radius-md);
-            margin-bottom: 20px;
-            font-family: var(--font-mono);
-            font-size: 14px;
-        }
-        .login-container .btn { width: 100%; padding: 12px; margin-bottom: 15px; text-align: center; }
-    </style>
+    <%- include('partials/head', {
+        title: '登录 - 负载均衡测试站点',
+        extraCss: '<style>.login-container { max-width: 480px; margin: 30px auto; } .session-info { background-color: var(--color-bg-card); padding: 10px 14px; border-radius: var(--radius-input); margin-bottom: 20px; font-family: var(--font-mono); font-size: 13px; color: var(--color-text-strong); } .login-container .btn { width: 100%; padding: 12px; margin-bottom: 12px; justify-content: center; }</style>'
+    }) %>
 </head>
 <body>
+    <%- include('partials/nav', { active: 'home', serverIP: serverIP }) %>
+
     <div class="container login-container">
-        <h1>🔐 登录测试</h1>
+        <h1>
+            <%- include('partials/icon', { name: 'log-in', size: 22 }) %>
+            登录测试
+        </h1>
 
         <div class="session-info">
             <strong>当前会话ID:</strong> <%= sessionId %>
         </div>
 
         <div class="alert alert-info">
-            <strong>测试说明:</strong> 登录后将创建会话，用于测试负载均衡器的会话保持功能。可以使用任意用户名和密码进行测试。
+            <%- include('partials/icon', { name: 'shield', size: 14 }) %>
+            <div>
+                <strong>测试说明</strong> 登录后将创建会话，用于测试负载均衡器的会话保持功能。可以使用任意用户名和密码进行测试。
+            </div>
         </div>
 
         <% if (error) { %>
             <div class="status status--error">
-                ❌ <%= error %>
+                <%- include('partials/icon', { name: 'x', size: 14 }) %>
+                <%= error %>
             </div>
         <% } %>
 
         <form method="POST" action="/login">
             <div class="form-group">
-                <label for="username">👤 用户名:</label>
-                <input type="text" id="username" name="username" required placeholder="输入任意用户名">
+                <label for="username">
+                    <%- include('partials/icon', { name: 'user', size: 13 }) %>
+                    用户名
+                </label>
+                <input type="text" id="username" name="username" required placeholder="输入任意用户名" autocomplete="username">
             </div>
 
             <div class="form-group">
-                <label for="password">🔑 密码:</label>
-                <input type="password" id="password" name="password" required placeholder="输入任意密码">
+                <label for="password">
+                    <%- include('partials/icon', { name: 'key', size: 13 }) %>
+                    密码
+                </label>
+                <input type="password" id="password" name="password" required placeholder="输入任意密码" autocomplete="current-password">
             </div>
 
-            <button type="submit" class="btn btn-primary">✅ 登录</button>
+            <button type="submit" class="btn btn-primary">
+                <%- include('partials/icon', { name: 'check', size: 14 }) %>
+                登录
+            </button>
         </form>
 
-        <a href="/" class="btn btn-secondary">🏠 返回主页</a>
+        <a href="/" class="btn btn-secondary">
+            <%- include('partials/icon', { name: 'home', size: 14 }) %>
+            返回主页
+        </a>
 
         <div class="help-block">
-            <strong>会话保持测试流程:</strong>
+            <strong>会话保持测试流程</strong>
             <ol>
                 <li>输入任意用户名和密码进行登录</li>
                 <li>登录成功后会创建会话并跳转到测试页面</li>
@@ -65,5 +71,6 @@
             </ol>
         </div>
     </div>
+    <%- include('partials/footer') %>
 </body>
 </html>

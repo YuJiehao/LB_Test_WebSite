@@ -1,93 +1,151 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="负载均衡器测试站点 —— 会话保持、长连接、F5 故障注入">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔄</text></svg>">
-    <title>负载均衡测试站点</title>
-    <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/info.css">
-    <link rel="stylesheet" href="/css/status.css">
-    <style>
-        /* 页面专属小样式（无法抽到通用类里的部分） */
-        .max-w-800 { max-width: 800px; margin-left: auto; margin-right: auto; }
-    </style>
+    <%- include('partials/head', { title: '负载均衡测试站点' }) %>
 </head>
 <body>
-    <div class="container max-w-800">
-        <h1>🔄 负载均衡测试站点</h1>
+    <%- include('partials/nav', { active: 'home', serverIP: serverIP }) %>
 
+    <div class="container">
+        <!-- ============================== HERO ============================== -->
+        <section class="hero">
+            <div class="hero__left">
+                <h1 class="hero__title">负载均衡测试站点</h1>
+                <p class="hero__subtitle">会话保持 · 长连接 · F5 故障注入 · 多 Pod 路由验证</p>
+                <div class="hero__meta">
+                    <div class="hero__meta-item">
+                        <span class="hero__meta-label">当前 Pod</span>
+                        <span class="hero__meta-value"><%= serverIP %></span>
+                    </div>
+                    <div class="hero__meta-item">
+                        <span class="hero__meta-label">客户端 IP</span>
+                        <span class="hero__meta-value"><%= clientIP %></span>
+                    </div>
+                    <div class="hero__meta-item">
+                        <span class="hero__meta-label">本机时间</span>
+                        <span class="hero__meta-value live-clock"><%= currentTime %></span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero__right">
+                <div class="hero__status hero__status--<%= faultMode === 'none' ? 'ok' : 'down' %>">
+                    <div class="hero__status-icon">
+                        <% if (faultMode === 'none') { %>
+                            <%- include('partials/icon', { name: 'heart-pulse', size: 22 }) %>
+                        <% } else { %>
+                            <%- include('partials/icon', { name: 'alert-triangle', size: 22 }) %>
+                        <% } %>
+                    </div>
+                    <div class="hero__status-body">
+                        <div class="hero__status-label">F5 Monitor</div>
+                        <div class="hero__status-value">
+                            <% if (faultMode === 'none') { %>健康 (200)<% } else { %>故障: <%= faultMode %><% } %>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-secondary" onclick="location.reload()">
+                    <%- include('partials/icon', { name: 'refresh-cw', size: 13 }) %>
+                    刷新
+                </button>
+            </div>
+        </section>
+
+        <!-- ============================== LOGIN BANNER ============================== -->
         <% if (isLoggedIn) { %>
-            <div class="status status--success">
-                ✅ 已登录用户: <%= username %> (会话ID: <%= sessionId %>)
+            <div class="status status--success hero__login-banner">
+                <%- include('partials/icon', { name: 'check', size: 14 }) %>
+                已登录用户 <strong><%= username %></strong>，会话ID: <code><%= sessionId %></code>
             </div>
         <% } %>
 
-        <button class="btn btn-sm btn-primary float-right" onclick="location.reload()">🔄 刷新页面</button>
-
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">🖥️ 服务器IP地址:</div>
-                <div class="info-value"><%= serverIP %></div>
-            </div>
-
-            <div class="info-item">
-                <div class="info-label">⏰ 当前时间:</div>
-                <div class="info-value live-clock"><%= currentTime %></div>
-            </div>
-
-            <div class="info-item">
-                <div class="info-label">🌐 客户端IP地址:</div>
-                <div class="info-value"><%= clientIP %></div>
-            </div>
-
-            <div class="info-item">
-                <div class="info-label">📡 X-Forwarded-For:</div>
-                <div class="info-value"><%= xForwardedFor || '未设置' %></div>
-            </div>
-
-            <div class="info-item">
-                <div class="info-label">🔑 会话ID (JSESSIONID):</div>
-                <div class="info-value"><%= sessionId %></div>
-            </div>
-
-            <div class="info-item">
-                <div class="info-label">🔧 用户代理:</div>
-                <div class="info-value"><%= userAgent %></div>
-            </div>
-
-            <div class="info-item <%= faultMode === 'none' ? 'info-item--ok' : 'info-item--down' %>">
-                <div class="info-label">🩺 本Pod健康状态 (F5 monitor):</div>
-                <div class="info-value <%= faultMode === 'none' ? 'info-value--ok' : 'info-value--down' %>">
-                    <% if (faultMode === 'none') { %>✅ 正常 (200 OK) <% } else { %>❌ 已注入故障: <%= faultMode %> <% } %>
+        <!-- ============================== 4 功能卡片 ============================== -->
+        <h2 class="section-title">
+            <%- include('partials/icon', { name: 'list', size: 18 }) %>
+            测试入口
+        </h2>
+        <div class="feature-grid">
+            <a href="/login" class="feature-card">
+                <div class="feature-card__icon feature-card__icon--blue">
+                    <%- include('partials/icon', { name: 'log-in', size: 20 }) %>
                 </div>
+                <div class="feature-card__title">登录测试</div>
+                <div class="feature-card__desc">创建会话，验证负载均衡器对 JSESSIONID 的保持行为</div>
+            </a>
+            <a href="/session-test" class="feature-card">
+                <div class="feature-card__icon feature-card__icon--green">
+                    <%- include('partials/icon', { name: 'shield', size: 20 }) %>
+                </div>
+                <div class="feature-card__title">会话验证</div>
+                <div class="feature-card__desc">检查会话 ID、Cookie、X-Forwarded-For 头部，验证服务器路由一致性</div>
+            </a>
+            <a href="/long-connection" class="feature-card">
+                <div class="feature-card__icon feature-card__icon--cyan">
+                    <%- include('partials/icon', { name: 'plug', size: 20 }) %>
+                </div>
+                <div class="feature-card__title">长连接业务</div>
+                <div class="feature-card__desc">WebSocket / SSE / 长轮询，验证 F5 长连接透传与超时配置</div>
+            </a>
+            <a href="/admin/fault" class="feature-card">
+                <div class="feature-card__icon feature-card__icon--orange">
+                    <%- include('partials/icon', { name: 'settings', size: 20 }) %>
+                </div>
+                <div class="feature-card__title">故障注入</div>
+                <div class="feature-card__desc">修改 <code>/health</code> 响应，触发 F5 action on service down</div>
+            </a>
+        </div>
+
+        <!-- ============================== 实时数据 ============================== -->
+        <h2 class="section-title">
+            <span class="live-dot"></span>
+            实时连接数据
+            <span class="section-title__sub">本 Pod 当前活跃连接 (SSE 推送)</span>
+        </h2>
+        <div class="stats-grid stats-grid--lg">
+            <div class="stat-box stat-box--ws">
+                <div class="stat-num" id="stat-ws"><%= connStats.websocket %></div>
+                <div class="stat-label">WebSocket</div>
+            </div>
+            <div class="stat-box stat-box--sse">
+                <div class="stat-num" id="stat-sse"><%= connStats.sse %></div>
+                <div class="stat-label">SSE</div>
+            </div>
+            <div class="stat-box stat-box--lp">
+                <div class="stat-num" id="stat-lp"><%= connStats.longPoll %></div>
+                <div class="stat-label">长轮询</div>
             </div>
         </div>
 
-        <div class="text-center">
-            <% if (!isLoggedIn) { %>
-                <a href="/login" class="btn">🔐 登录测试会话保持</a>
-            <% } else { %>
-                <a href="/session-test" class="btn">📊 查看会话保持状态</a>
-                <a href="/logout" class="btn btn-danger">🚪 退出登录</a>
-            <% } %>
-            <a href="/long-connection" class="btn btn-info">🔌 长连接业务</a>
-            <a href="/admin/fault" class="btn btn-warning">⚙️ 故障注入 (F5 monitor)</a>
-        </div>
-
+        <!-- ============================== 使用说明 ============================== -->
         <div class="help-block">
-            <strong>使用说明:</strong>
+            <strong>使用说明</strong>
             <ul>
                 <li>此站点用于测试负载均衡器的会话保持功能</li>
-                <li>点击"登录测试会话保持"进入登录页面，登录后可查看会话是否在多次请求中保持一致</li>
+                <li>点击"登录测试"进入登录页面，登录后可查看会话是否在多次请求中保持一致</li>
                 <li>刷新页面可查看请求是否路由到同一服务器</li>
                 <li><strong>长连接业务</strong>：测试 WebSocket / SSE / 长轮询在 F5 上的表现</li>
-                <li><strong>故障注入</strong>：修改本 Pod 的 <code>/health</code> 响应，让 F5 HTTP monitor 探测到业务故障，触发 action on service down</li>
+                <li><strong>故障注入</strong>：修改本 Pod 的 <code>/health</code> 响应，让 F5 HTTP monitor 探测到业务故障</li>
             </ul>
         </div>
     </div>
 
     <script src="/js/clock.js"></script>
+    <%- include('partials/footer') %>
+    <script>
+    // 订阅 /api/fault/stream 拿 conn_stats 实时更新
+    try {
+        const es = new EventSource('/api/fault/stream');
+        es.onmessage = (ev) => {
+            try {
+                const msg = JSON.parse(ev.data);
+                if (msg.type === 'conn_stats' && msg.stats) {
+                    document.getElementById('stat-ws').textContent  = msg.stats.websocket || 0;
+                    document.getElementById('stat-sse').textContent = msg.stats.sse || 0;
+                    document.getElementById('stat-lp').textContent  = msg.stats.longPoll || 0;
+                }
+            } catch (e) { /* ignore */ }
+        };
+        es.onerror = () => { /* EventSource auto-reconnect */ };
+    } catch (e) { /* EventSource not supported */ }
+    </script>
 </body>
 </html>
