@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
       - name: app
-        image: 172.20.20.250/webapps/load-balancer-test:v1.7
+        image: 172.20.20.250/webapps/load-balancer-test:v1.8
         imagePullPolicy: Always
         ports:
         - containerPort: 3000

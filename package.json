@@ -1,6 +1,6 @@
 {
   "name": "load-balancer-test-site",
-  "version": "1.0.0",
+  "version": "1.8.0",
   "description": "Web site for testing load balancer functionality, session persistence, long connections and fault injection",
   "main": "app.js",
   "scripts": {
