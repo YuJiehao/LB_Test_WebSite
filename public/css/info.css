@@ -1,0 +1,63 @@
+/* =========================================================================
+ * 信息展示网格（服务器 IP、时间、会话 ID、Cookie 等通用 key/value 块）
+ * ========================================================================= */
+.info-grid {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.info-grid--wide {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.info-item {
+    background: var(--color-bg-card);
+    padding: 12px 15px;
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--color-primary);
+}
+
+.info-label {
+    font-weight: bold;
+    color: var(--color-text-strong);
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.info-value {
+    color: var(--color-success);
+    font-family: var(--font-mono);
+    word-break: break-all;
+}
+
+/* —— 变体：用于 session-test 的分组卡片 —— */
+.info-section {
+    background: var(--color-bg-card);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+}
+
+.info-section .section-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--color-text-strong);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.info-section .info-item {
+    margin-bottom: 12px;
+    padding: 8px;
+    background: white;
+    border-radius: var(--radius-sm);
+}
+
+/* —— 颜色变体 —— */
+.info-item--ok    { border-left-color: var(--color-success); }
+.info-item--down  { border-left-color: var(--color-danger); }
+.info-value--ok   { color: var(--color-success); }
+.info-value--down { color: var(--color-danger); }

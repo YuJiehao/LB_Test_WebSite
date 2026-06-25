@@ -1,0 +1,224 @@
+/* =========================================================================
+ * 设计 Token（颜色 / 间距 / 圆角 / 阴影）
+ * 修改这里就能整体换主题，无需改动具体页面
+ * ========================================================================= */
+:root {
+    /* —— 主色 —— */
+    --color-primary:        #007bff;
+    --color-primary-hover:  #0056b3;
+    --color-success:        #28a745;
+    --color-success-hover:  #c82333;
+    --color-danger:         #dc3545;
+    --color-danger-hover:   #c82333;
+    --color-warning:        #ffc107;
+    --color-info:           #17a2b8;
+    --color-orange:         #fd7e14;
+    --color-secondary:      #6c757d;
+    --color-secondary-hover:#545b62;
+    --color-disabled:       #aaa;
+
+    /* —— 文本 —— */
+    --color-text:           #333;
+    --color-text-strong:    #495057;
+    --color-text-muted:     #6c757d;
+    --color-text-label:     #6c757d;
+
+    /* —— 背景 / 边框 —— */
+    --color-bg:             #f5f5f5;
+    --color-bg-card:        #f8f9fa;
+    --color-bg-card-alt:    #fafbfc;
+    --color-bg-muted:       #e9ecef;
+    --color-border:         #e9ecef;
+    --color-border-strong:  #dee2e6;
+    --color-code-bg:        #f1f3f5;
+
+    /* —— 状态色（背景 + 前景 + 边框）—— */
+    --state-success-bg:     #d4edda;
+    --state-success-fg:     #155724;
+    --state-success-border: #c3e6cb;
+    --state-warning-bg:     #fff3cd;
+    --state-warning-fg:     #856404;
+    --state-warning-border: #ffeeba;
+    --state-danger-bg:      #f8d7da;
+    --state-danger-fg:      #721c24;
+    --state-danger-border:  #f5c6cb;
+    --state-info-bg:        #e7f3ff;
+
+    /* —— 日志区颜色 —— */
+    --color-bg-dark:        #1e1e1e;
+    --color-text-dark:      #d4d4d4;
+    --log-color-ws:         #9cdcfe;
+    --log-color-sse:        #b5cea8;
+    --log-color-lp:         #dcdcaa;
+    --log-color-error:      #f48771;
+    --log-color-fault:      #f48771;
+
+    /* —— 圆角 —— */
+    --radius-sm: 4px;
+    --radius-md: 5px;
+    --radius-lg: 8px;
+    --radius-xl: 10px;
+
+    /* —— 阴影 —— */
+    --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.1);
+
+    /* —— 字体 —— */
+    --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-mono: 'Courier New', monospace;
+}
+
+/* =========================================================================
+ * Reset / Base
+ * ========================================================================= */
+* { box-sizing: border-box; }
+
+body {
+    font-family: var(--font-sans);
+    margin: 0 auto;
+    padding: 20px;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.5;
+}
+
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+}
+
+h1 {
+    color: var(--color-text);
+    text-align: center;
+    margin: 0 0 30px;
+}
+
+h2 {
+    color: var(--color-text-strong);
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 8px;
+    margin-top: 30px;
+    margin-bottom: 16px;
+}
+
+p { margin: 0 0 12px; }
+code {
+    background: var(--color-code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+}
+
+/* =========================================================================
+ * Buttons
+ * ========================================================================= */
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    border: none;
+    border-radius: var(--radius-md);
+    margin: 10px 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.15s, opacity 0.15s;
+}
+.btn:hover { background-color: var(--color-primary-hover); }
+
+.btn-primary   { background-color: var(--color-primary); }
+.btn-primary:hover { background-color: var(--color-primary-hover); }
+.btn-success   { background-color: var(--color-success); }
+.btn-success:hover { background-color: var(--color-success-hover); }
+.btn-danger    { background-color: var(--color-danger); }
+.btn-danger:hover  { background-color: var(--color-danger-hover); }
+.btn-secondary { background-color: var(--color-secondary); }
+.btn-secondary:hover { background-color: var(--color-secondary-hover); }
+.btn-info      { background-color: var(--color-info); }
+.btn-warning   { background-color: var(--color-orange); }
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 14px;
+    margin: 4px 4px 4px 0;
+}
+.btn:disabled {
+    background-color: var(--color-disabled);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* =========================================================================
+ * Forms
+ * ========================================================================= */
+.form-group { margin-bottom: 20px; }
+.form-row   { margin: 8px 0; }
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: var(--color-text-strong);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    background: white;
+    color: var(--color-text);
+}
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+/* =========================================================================
+ * Alerts (warning / danger / info)
+ * ========================================================================= */
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    margin: 16px 0;
+    font-size: 14px;
+    border: 1px solid transparent;
+}
+.alert-warning { background: var(--state-warning-bg); color: var(--state-warning-fg); border-color: var(--state-warning-border); }
+.alert-danger  { background: var(--state-danger-bg);  color: var(--state-danger-fg);  border-color: var(--state-danger-border); }
+.alert-info    { background: var(--state-info-bg);    color: var(--color-text-strong); }
+.alert-muted   { background: var(--color-bg-muted);  color: var(--color-text-strong); }
+
+.help-block {
+    background: var(--color-bg-muted);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    font-size: 14px;
+    margin-top: 20px;
+}
+.help-block ul, .help-block ol { margin: 8px 0; padding-left: 24px; }
+.help-block li { margin-bottom: 4px; }
+.help-block h4 { margin: 12px 0 6px; color: var(--color-text-strong); }
+
+/* =========================================================================
+ * Responsive
+ * ========================================================================= */
+@media (max-width: 640px) {
+    body        { padding: 12px; }
+    .container  { padding: 16px; border-radius: var(--radius-lg); }
+    h1          { font-size: 22px; margin-bottom: 16px; }
+    h2          { font-size: 18px; }
+    .btn        { padding: 10px 16px; font-size: 14px; margin: 6px 3px; }
+    .info-grid,
+    .stats-grid { grid-template-columns: 1fr !important; }
+    .stat-num   { font-size: 24px; }
+}

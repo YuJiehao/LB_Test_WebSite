@@ -11,11 +11,11 @@ set -euo pipefail
 HARBOR_HOST="172.20.20.250"
 HARBOR_USER="admin"
 # 密码必须从环境变量 HARBOR_PASS 传入，避免硬编码泄露。
-# 使用方法：export HARBOR_PASS='你的密码' && bash push-to-harbor.sh v1.1
+# 使用方法：export HARBOR_PASS='Harbor12345' && bash push-to-harbor.sh v1.2
 HARBOR_PASS="${HARBOR_PASS:-}"
 HARBOR_PROJECT="webapps"         # Harbor 项目名，不存在时自动创建
 IMAGE_NAME="load-balancer-test"
-IMAGE_TAG="${1:-v1.0}"           # 默认 v1.0，可通过第一个参数覆盖
+IMAGE_TAG="${1:-v1.2}"           # 默认 v1.2，可通过第一个参数覆盖
 FULL_IMAGE="${HARBOR_HOST}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
 LATEST_IMAGE="${HARBOR_HOST}/${HARBOR_PROJECT}/${IMAGE_NAME}:latest"
 

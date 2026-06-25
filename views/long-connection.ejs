@@ -3,114 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="长连接业务测试 - WebSocket / SSE / 长轮询">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔌</text></svg>">
     <title>长连接业务测试 - 负载均衡测试站点</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/info.css">
+    <link rel="stylesheet" href="/css/status.css">
+    <link rel="stylesheet" href="/css/layout.css">
     <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 { color: #333; text-align: center; margin-bottom: 30px; }
-        h2 { color: #495057; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-top: 30px; }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        .info-item {
-            background: #f8f9fa;
-            padding: 12px 15px;
-            border-radius: 6px;
-            border-left: 4px solid #007bff;
-        }
-        .info-label { font-weight: bold; color: #495057; font-size: 13px; margin-bottom: 4px; }
-        .info-value { color: #28a745; font-family: 'Courier New', monospace; word-break: break-all; }
-        .card {
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            background: #fafbfc;
-        }
-        .card h3 { margin-top: 0; }
-        .btn {
-            display: inline-block;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 4px 4px 4px 0;
-            color: white;
-        }
-        .btn-primary { background: #007bff; }
-        .btn-success { background: #28a745; }
-        .btn-danger { background: #dc3545; }
-        .btn-secondary { background: #6c757d; }
-        .btn:hover { opacity: 0.85; }
-        .btn:disabled { background: #aaa; cursor: not-allowed; }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        .stat-box {
-            text-align: center;
-            padding: 15px;
-            background: #fff;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-        }
-        .stat-num { font-size: 32px; font-weight: bold; color: #007bff; }
-        .stat-label { font-size: 13px; color: #6c757d; margin-top: 4px; }
-        .log-area {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 12px;
-            border-radius: 5px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            max-height: 320px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .log-area .ws-msg { color: #9cdcfe; }
-        .log-area .sse-msg { color: #b5cea8; }
-        .log-area .lp-msg { color: #dcdcaa; }
-        .log-area .error { color: #f48771; }
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .badge-ok { background: #d4edda; color: #155724; }
-        .badge-down { background: #f8d7da; color: #721c24; }
-        input[type="text"], input[type="number"] {
-            padding: 6px 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 14px;
-            margin-right: 6px;
-        }
-        .form-row { margin: 8px 0; }
-        .note { font-size: 13px; color: #6c757d; margin-top: 6px; }
+        .lc-container { max-width: 1100px; margin: 0 auto; }
+        .ws-interval { width: 120px; }
+        .lp-wait     { width: 140px; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container lc-container">
         <h1>🔌 长连接业务测试</h1>
 
         <div class="info-grid">
@@ -120,19 +27,19 @@
             </div>
             <div class="info-item">
                 <div class="info-label">⏰ 当前时间</div>
-                <div class="info-value"><%= currentTime %></div>
+                <div class="info-value live-clock"><%= currentTime %></div>
             </div>
             <div class="info-item">
                 <div class="info-label">🔑 会话ID</div>
                 <div class="info-value"><%= sessionId %></div>
             </div>
-            <div class="info-item">
+            <div class="info-item <%= faultMode === 'none' ? 'info-item--ok' : 'info-item--down' %>">
                 <div class="info-label">🎯 本Pod故障状态</div>
                 <div class="info-value">
                     <% if (faultMode === 'none') { %>
-                        <span class="badge badge-ok">正常</span>
+                        <span class="badge badge--ok">正常</span>
                     <% } else { %>
-                        <span class="badge badge-down">已注入：<%= faultMode %></span>
+                        <span class="badge badge--down">已注入：<%= faultMode %></span>
                     <% } %>
                 </div>
             </div>
@@ -153,17 +60,33 @@
                 <div class="stat-label">长轮询连接数</div>
             </div>
         </div>
-        <div class="note">每 2 秒自动刷新一次（仅刷新本 Pod 的统计）。</div>
+        <div class="note">实时通过 SSE 推送（仅本 Pod 的统计，连接事件触发时立即更新）。</div>
 
         <h2>1️⃣ WebSocket 长连接</h2>
         <div class="card">
             <p>建立到 <code>ws://&lt;host&gt;/ws</code> 的 WebSocket 连接，可发送任意消息，服务器会回显并周期性推送 tick。可用于测试 F5 的 WebSocket 透传、连接保持时长、OneConnect 等。</p>
             <div class="form-row">
                 <label>推送间隔 (ms):</label>
-                <input type="number" id="ws-interval" value="2000" min="500" step="500" style="width:120px;">
-                <button class="btn btn-success" id="ws-connect">🔌 建立连接</button>
-                <button class="btn btn-danger" id="ws-disconnect" disabled>❌ 断开</button>
-                <button class="btn btn-primary" id="ws-send" disabled>📨 发送测试消息</button>
+                <input type="number" id="ws-interval" class="ws-interval" value="2000" min="500" step="500">
+                <button class="btn btn-sm btn-success" id="ws-connect">🔌 建立连接</button>
+                <button class="btn btn-sm btn-danger" id="ws-disconnect" disabled>❌ 断开</button>
+            </div>
+            <div class="form-row" style="margin-top:8px;">
+                <label>消息内容:</label>
+                <input type="text" id="ws-msg" placeholder="输入消息，回车发送..." style="flex:1;max-width:400px;" disabled>
+                <button class="btn btn-sm btn-primary" id="ws-send" disabled>📨 发送</button>
+            </div>
+            <div class="form-row" style="margin-top:8px;">
+                <label><input type="checkbox" id="ws-auto-send" disabled> 自动发送</label>
+                <label>间隔 (ms):</label>
+                <input type="number" id="ws-auto-interval" class="ws-interval" value="3000" min="500" step="500" disabled>
+                <span class="note" id="ws-auto-status">已发送: 0</span>
+            </div>
+            <div class="info-grid" style="margin-top:8px;">
+                <div class="info-item"><div class="info-label">🔗 连接ID</div><div class="info-value" id="ws-conn-id">—</div></div>
+                <div class="info-item"><div class="info-label">🖥️ 连接Pod IP</div><div class="info-value" id="ws-conn-ip">—</div></div>
+                <div class="info-item"><div class="info-label">🔐 协议</div><div class="info-value" id="ws-proto">—</div></div>
+                <div class="info-item"><div class="info-label">📨 总消息数</div><div class="info-value" id="ws-msg-count">0</div></div>
             </div>
             <div class="log-area" id="ws-log">等待连接...</div>
         </div>
@@ -173,9 +96,9 @@
             <p>建立到 <code>/sse</code> 的 SSE 连接，服务器周期性推送事件。用于测试 F5 的 HTTP 长连接 / chunked 响应保持。</p>
             <div class="form-row">
                 <label>推送间隔 (ms):</label>
-                <input type="number" id="sse-interval" value="1000" min="500" step="500" style="width:120px;">
-                <button class="btn btn-success" id="sse-connect">📡 建立连接</button>
-                <button class="btn btn-danger" id="sse-disconnect" disabled>❌ 断开</button>
+                <input type="number" id="sse-interval" class="ws-interval" value="1000" min="500" step="500">
+                <button class="btn btn-sm btn-success" id="sse-connect">📡 建立连接</button>
+                <button class="btn btn-sm btn-danger" id="sse-disconnect" disabled>❌ 断开</button>
             </div>
             <div class="log-area" id="sse-log">等待连接...</div>
         </div>
@@ -185,9 +108,9 @@
             <p>向 <code>/long-poll?wait=&lt;ms&gt;</code> 发起请求，服务器阻塞指定毫秒后才响应。可测试 F5 的连接池管理、长连接超时、空闲连接清理等。</p>
             <div class="form-row">
                 <label>等待时长 (ms, 最多 120000):</label>
-                <input type="number" id="lp-wait" value="30000" min="1000" max="120000" step="1000" style="width:140px;">
-                <button class="btn btn-primary" id="lp-start">🚀 发起长轮询</button>
-                <button class="btn btn-danger" id="lp-abort" disabled>🛑 取消</button>
+                <input type="number" id="lp-wait" class="lp-wait" value="30000" min="1000" max="120000" step="1000">
+                <button class="btn btn-sm btn-primary" id="lp-start">🚀 发起长轮询</button>
+                <button class="btn btn-sm btn-danger" id="lp-abort" disabled>🛑 取消</button>
             </div>
             <div class="log-area" id="lp-log">等待请求...</div>
         </div>
@@ -202,101 +125,226 @@
             </ul>
         </div>
 
-        <div style="text-align:center; margin-top: 20px;">
-            <a href="/" class="btn btn-secondary">🏠 返回主页</a>
-            <a href="/admin/fault" class="btn btn-primary">⚙️ 故障注入管理</a>
+        <div class="text-center mt-lg">
+            <a href="/" class="btn btn-sm btn-secondary">🏠 返回主页</a>
+            <a href="/admin/fault" class="btn btn-sm btn-primary">⚙️ 故障注入管理</a>
         </div>
     </div>
 
+    <script src="/js/clock.js"></script>
+    <script src="/js/logger.js"></script>
     <script>
-    // ---------------- Stats polling ----------------
-    async function refreshStats() {
-        try {
-            const r = await fetch('/api/connection-stats', { cache: 'no-store' });
-            const d = await r.json();
-            document.getElementById('stat-ws').textContent = d.websocket || 0;
-            document.getElementById('stat-sse').textContent = d.sse || 0;
-            document.getElementById('stat-lp').textContent = d.longPoll || 0;
-        } catch (e) { /* ignore */ }
+    // ---------------- Stats via SSE (替代原 2s 轮询) ----------------
+    function updateStats(ws, sse, lp) {
+        document.getElementById('stat-ws').textContent = ws || 0;
+        document.getElementById('stat-sse').textContent = sse || 0;
+        document.getElementById('stat-lp').textContent = lp || 0;
     }
-    refreshStats();
-    setInterval(refreshStats, 2000);
+    // 订阅 /api/fault/stream，复用同一个 SSE 通道（type === 'conn_stats' 时只更新统计）
+    try {
+        const statsEs = new EventSource('/api/fault/stream');
+        statsEs.onmessage = (ev) => {
+            try {
+                const msg = JSON.parse(ev.data);
+                if (msg.type === 'conn_stats' && msg.stats) {
+                    updateStats(msg.stats.websocket, msg.stats.sse, msg.stats.longPoll);
+                }
+            } catch (e) { /* ignore */ }
+        };
+        statsEs.onerror = () => { /* EventSource 自动重连 */ };
+    } catch (e) { /* EventSource 不支持 */ }
+
+    // ---------------- Loggers (复用 makeLogger) ----------------
+    const wsAppend = makeLogger('ws-log');
+    const sseAppend = makeLogger('sse-log');
+    const lpAppend = makeLogger('lp-log');
 
     // ---------------- WebSocket ----------------
+    // 注意：WebSocket 不会自动重连。设计意图是让用户观察 F5 action on service down
+    // 为 drop 时的行为——F5 静默丢包，客户端 TCP 层既收不到 RST 也收不到 FIN，
+    // 只有 TCP keepalive 超时后连接才会断开。不自动重连可以清晰观察这一过程。
     let ws = null;
-    const wsLog = document.getElementById('ws-log');
-    function wsAppend(text, cls) {
-        const line = document.createElement('div');
-        line.className = cls || '';
-        line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-        wsLog.appendChild(line);
-        wsLog.scrollTop = wsLog.scrollHeight;
-    }
-    document.getElementById('ws-connect').onclick = () => {
-        if (ws) return;
+    let wsConnId = '';
+    let wsMsgCount = 0;
+    let wsAutoTimer = null;   // 自动发送的 setInterval ID
+    let wsAutoCount = 0;       // 自动发送计数器
+
+    function buildWsUrl() {
         const interval = document.getElementById('ws-interval').value || 2000;
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-        const url = `${proto}://${location.host}/ws?interval=${interval}`;
-        wsAppend(`正在连接 ${url} ...`, 'ws-msg');
+        return `${proto}://${location.host}/ws?interval=${interval}`;
+    }
+
+    function setWsButtons(connected) {
+        document.getElementById('ws-connect').disabled = connected;
+        document.getElementById('ws-disconnect').disabled = !connected;
+        document.getElementById('ws-send').disabled = !connected;
+        document.getElementById('ws-msg').disabled = !connected;
+        document.getElementById('ws-auto-send').disabled = !connected;
+        document.getElementById('ws-auto-interval').disabled = !connected;
+        if (!connected) {
+            stopAutoSend();
+            document.getElementById('ws-auto-send').checked = false;
+            document.getElementById('ws-auto-status').textContent = '已发送: 0';
+        }
+    }
+
+    function updateWsInfo(id, serverIP) {
+        document.getElementById('ws-conn-id').textContent = id || '—';
+        document.getElementById('ws-conn-ip').textContent = serverIP || '—';
+        document.getElementById('ws-msg-count').textContent = wsMsgCount;
+    }
+
+    function sendWsMessage(fromAuto) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        let msg;
+        if (fromAuto) {
+            wsAutoCount++;
+            msg = '[auto #' + wsAutoCount + '] ' + new Date().toISOString();
+            document.getElementById('ws-auto-status').textContent = '已发送: ' + wsAutoCount;
+        } else {
+            msg = document.getElementById('ws-msg').value.trim();
+            if (!msg) {
+                msg = 'hello at ' + new Date().toISOString();
+            }
+            document.getElementById('ws-msg').value = '';
+        }
+        ws.send(msg);
+        wsMsgCount++;
+        document.getElementById('ws-msg-count').textContent = wsMsgCount;
+        wsAppend((fromAuto ? '🔄 ' : '➡ ') + msg, 'log-ws');
+    }
+
+    function startAutoSend() {
+        if (wsAutoTimer) return;
+        const interval = Math.max(500, parseInt(document.getElementById('ws-auto-interval').value, 10) || 3000);
+        wsAutoTimer = setInterval(() => sendWsMessage(true), interval);
+        wsAppend('🔄 自动发送已启动 (间隔 ' + interval + 'ms)', 'log-ws');
+    }
+
+    function stopAutoSend() {
+        if (wsAutoTimer) {
+            clearInterval(wsAutoTimer);
+            wsAutoTimer = null;
+            wsAppend('⏸ 自动发送已停止 (共发送 ' + wsAutoCount + ' 条)', 'log-ws');
+        }
+    }
+
+    function connectWs() {
+        if (ws) return;
+        wsAutoCount = 0;
+        const url = buildWsUrl();
+        // 显示实际使用的 WebSocket 协议（ws=明文, wss=TLS加密）
+        document.getElementById('ws-proto').textContent = url.startsWith('wss') ? 'WSS (TLS加密)' : 'WS (明文)';
+        wsAppend(`正在连接 ${url} ...`, 'log-ws');
         ws = new WebSocket(url);
         ws.onopen = () => {
-            wsAppend('✅ 连接已建立', 'ws-msg');
-            document.getElementById('ws-connect').disabled = true;
-            document.getElementById('ws-disconnect').disabled = false;
-            document.getElementById('ws-send').disabled = false;
+            wsAppend('✅ 连接已建立，等待服务端欢迎消息...', 'log-ws');
+            setWsButtons(true);
+            document.getElementById('ws-msg').focus();
+            // 如果连接前已经勾了自动发送，自动启动
+            if (document.getElementById('ws-auto-send').checked) {
+                startAutoSend();
+            }
         };
         ws.onmessage = (ev) => {
-            let display = ev.data;
+            wsMsgCount++;
+            document.getElementById('ws-msg-count').textContent = wsMsgCount;
             try {
-                const obj = JSON.parse(ev.data);
-                display = JSON.stringify(obj);
-            } catch (e) {}
-            wsAppend('⬅ ' + display, 'ws-msg');
+                const data = JSON.parse(ev.data);
+                // welcome 消息：提取连接 ID 和服务器 IP
+                if (data.type === 'welcome') {
+                    wsConnId = data.id;
+                    updateWsInfo(data.id, data.serverIP);
+                    wsAppend(`👋 欢迎 [${data.id}] Pod=${data.serverIP} client=${data.clientIP}`, 'log-ws');
+                    return;
+                }
+                // echo 消息：服务器回显（request-response 复用同一连接）
+                if (data.type === 'echo') {
+                    wsAppend(`⬅ echo [#${data.seq}] Pod=${data.serverIP} preview="${data.echoPreview}"`, 'log-ws');
+                    return;
+                }
+                // tick 消息：服务器主动推送
+                if (data.type === 'tick') {
+                    wsAppend(`⬅ tick [#${data.seq}] Pod=${data.serverIP} time=${data.time}`, 'log-ws');
+                    return;
+                }
+                // fault 消息：故障注入导致服务端暂停/恢复 tick
+                if (data.type === 'fault') {
+                    if (data.action === 'pause') {
+                        wsAppend(`⏸ 故障注入 (${data.mode})，服务端 tick 已暂停 — 模拟双方静默状态`, 'log-error');
+                    } else if (data.action === 'resume') {
+                        wsAppend('▶ 故障恢复 (none)，服务端 tick 已恢复', 'log-ws');
+                    }
+                    return;
+                }
+            } catch (e) { /* not JSON */ }
+            // 非 JSON 或无法解析的消息
+            wsAppend('⬅ ' + ev.data, 'log-ws');
         };
-        ws.onerror = (e) => wsAppend('⚠ error: ' + (e.message || e), 'error');
+        ws.onerror = (e) => wsAppend('⚠ error: ' + (e.message || e), 'log-error');
         ws.onclose = (ev) => {
-            wsAppend(`🔌 连接关闭 code=${ev.code}`, 'ws-msg');
+            stopAutoSend();
+            wsAppend(`🔌 连接关闭 code=${ev.code} reason="${ev.reason || ''}"`, 'log-ws');
+            updateWsInfo('(已断开)', '(已断开)');
+            document.getElementById('ws-proto').textContent = '—';
             ws = null;
-            document.getElementById('ws-connect').disabled = false;
-            document.getElementById('ws-disconnect').disabled = true;
-            document.getElementById('ws-send').disabled = true;
+            wsConnId = '';
+            setWsButtons(false);
+            // 不做自动重连：F5 执行 action on service down=drop 时静默丢包，
+            // 客户端可能很久才会感知（TCP keepalive 超时或发送数据时发现）。
+            // 如需重新建立连接，请手动点击「建立连接」按钮。
         };
+    }
+
+    document.getElementById('ws-connect').onclick = () => {
+        connectWs();
     };
     document.getElementById('ws-disconnect').onclick = () => {
         if (ws) ws.close();
     };
     document.getElementById('ws-send').onclick = () => {
-        if (!ws) return;
-        const msg = 'hello from ' + location.host + ' at ' + new Date().toISOString();
-        ws.send(msg);
-        wsAppend('➡ ' + msg, 'ws-msg');
+        sendWsMessage(false);
     };
+    document.getElementById('ws-msg').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendWsMessage(false);
+        }
+    });
+    // 自动发送开关
+    document.getElementById('ws-auto-send').addEventListener('change', function() {
+        if (this.checked) {
+            startAutoSend();
+        } else {
+            stopAutoSend();
+        }
+    });
+    // 自动发送间隔变更时，如果正在运行则重启
+    document.getElementById('ws-auto-interval').addEventListener('change', function() {
+        if (wsAutoTimer) {
+            stopAutoSend();
+            startAutoSend();
+        }
+    });
 
     // ---------------- SSE ----------------
     let es = null;
-    const sseLog = document.getElementById('sse-log');
-    function sseAppend(text, cls) {
-        const line = document.createElement('div');
-        line.className = cls || '';
-        line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-        sseLog.appendChild(line);
-        sseLog.scrollTop = sseLog.scrollHeight;
-    }
     document.getElementById('sse-connect').onclick = () => {
         if (es) return;
         const interval = document.getElementById('sse-interval').value || 1000;
-        sseAppend(`正在连接 /sse?interval=${interval} ...`, 'sse-msg');
+        sseAppend(`正在连接 /sse?interval=${interval} ...`, 'log-sse');
         es = new EventSource(`/sse?interval=${interval}`);
         es.onopen = () => {
-            sseAppend('✅ SSE 已建立', 'sse-msg');
+            sseAppend('✅ SSE 已建立', 'log-sse');
             document.getElementById('sse-connect').disabled = true;
             document.getElementById('sse-disconnect').disabled = false;
         };
         es.onmessage = (ev) => {
-            sseAppend('⬅ ' + ev.data, 'sse-msg');
+            sseAppend('⬅ ' + ev.data, 'log-sse');
         };
-        es.onerror = (e) => {
-            sseAppend('⚠ SSE 错误 (可能连接已断开)', 'error');
+        es.onerror = () => {
+            sseAppend('⚠ SSE 错误 (可能连接已断开)', 'log-error');
             es.close();
             es = null;
             document.getElementById('sse-connect').disabled = false;
@@ -311,27 +359,19 @@
 
     // ---------------- Long Poll ----------------
     let lpCtrl = null;
-    const lpLog = document.getElementById('lp-log');
-    function lpAppend(text, cls) {
-        const line = document.createElement('div');
-        line.className = cls || '';
-        line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-        lpLog.appendChild(line);
-        lpLog.scrollTop = lpLog.scrollHeight;
-    }
     document.getElementById('lp-start').onclick = () => {
         if (lpCtrl) return;
         const wait = Math.max(1000, Math.min(120000, parseInt(document.getElementById('lp-wait').value, 10) || 30000));
-        lpAppend(`发起 /long-poll?wait=${wait} ...`, 'lp-msg');
+        lpAppend(`发起 /long-poll?wait=${wait} ...`, 'log-lp');
         const start = Date.now();
         lpCtrl = new AbortController();
         fetch(`/long-poll?wait=${wait}`, { signal: lpCtrl.signal })
             .then(r => r.json())
             .then(d => {
-                lpAppend(`✅ 响应：实际 ${Date.now() - start} ms，${JSON.stringify(d)}`, 'lp-msg');
+                lpAppend(`✅ 响应：实际 ${Date.now() - start} ms，${JSON.stringify(d)}`, 'log-lp');
             })
             .catch(e => {
-                lpAppend(`❌ ${e.name}: ${e.message}`, 'error');
+                lpAppend(`❌ ${e.name}: ${e.message}`, 'log-error');
             })
             .finally(() => {
                 lpCtrl = null;

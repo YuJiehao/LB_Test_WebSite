@@ -9,15 +9,91 @@ const { WebSocketServer } = require("ws");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// 信任所有反向代理（F5/Nginx/Ingress）的 X-Forwarded-For 头
+// 这样 `req.ip` 才能拿到真实客户端 IP，而不是负载均衡器的 IP
+app.set("trust proxy", true);
+
+// Set view engine
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
+// ========================================================================
+// ⚠️ /health MUST be declared BEFORE session / cookie / body-parser middleware.
+// This prevents F5 monitor probes from creating spurious sessions and
+// avoids Set-Cookie headers that could interfere with F5's recv matching.
+// ========================================================================
+
+const FAULT_MODES = [
+    "none",
+    "http_500",
+    "http_503",
+    "slow",
+    "wrong_body",
+    "reset",
+];
+const faultState = {
+    mode: "none",
+    slowDelayMs: 60000, // 60s, far beyond typical F5 monitor timeout (16s)
+    updatedAt: null,
+    updatedBy: null,
+};
+
+// Health check endpoint for F5 HTTP monitor — runs with ZERO middleware overhead.
+// F5 sends: GET /health HTTP/1.1\r\nHost: <vhost>\r\nConnection: close\r\n\r\n
+// F5 expects: status 200 + body containing "HEALTHY"
+app.get("/health", (req, res) => {
+    const mode = faultState.mode;
+    const clientIP = req.ip || req.socket?.remoteAddress || "?";
+    console.log(
+        `[HEALTH] mode=${mode} client=${clientIP} time=${getBeijingTime()}`,
+    );
+
+    // Explicit Connection: close — ensure F5 gets a clean, header-only-free response
+    res.set("Connection", "close");
+
+    if (mode === "http_500") {
+        return res.status(500).type("text/plain").send("ERROR-INJECTED\n");
+    }
+    if (mode === "http_503") {
+        return res.status(503).type("text/plain").send("ERROR-INJECTED\n");
+    }
+    if (mode === "wrong_body") {
+        // 200 status but body lacks "HEALTHY" — F5 Receive String check fails
+        return res.status(200).type("text/plain").send("UNHEALTHY-INJECTED\n");
+    }
+    if (mode === "reset") {
+        // Destroy socket immediately → TCP RST → F5 sees connection failure (most reliable)
+        req.socket.destroy();
+        return;
+    }
+    if (mode === "slow") {
+        // Keep connection open past F5 timeout (16s) → F5 marks member DOWN
+        const delay = faultState.slowDelayMs;
+        setTimeout(() => {
+            try {
+                if (!res.headersSent && !req.socket.destroyed) {
+                    res.status(200).type("text/plain").send("HEALTHY\n");
+                }
+            } catch (e) {
+                /* socket already gone */
+            }
+        }, delay);
+        return;
+    }
+    // healthy
+    res.status(200).type("text/plain").send("HEALTHY\n");
+});
+
+// ========================================================================
+// Middleware (applied AFTER /health so probes skip all of this)
+// ========================================================================
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Session configuration
 app.use(
     session({
-        secret: "load-balancer-test-secret",
+        secret: process.env.SESSION_SECRET || "load-balancer-test-secret",
         resave: false,
         saveUninitialized: true,
         cookie: {
@@ -28,11 +104,6 @@ app.use(
     }),
 );
 
-// Set view engine
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
-
-// Static files
 app.use(express.static(path.join(__dirname, "public")));
 
 // ========================================================================
@@ -66,30 +137,66 @@ function getBeijingTime() {
     });
 }
 
-// ========================================================================
-// Fault injection state (in-memory, per-Pod)
-// ========================================================================
-// Each Pod keeps its own state, so F5's HTTP monitor can detect individual
-// Pod failures and trigger the "action on service down" feature.
-//
-// Modes:
-//   none         - healthy: return 200 with body containing "OK"
-//   http_500     - return HTTP 500 Internal Server Error
-//   http_503     - return HTTP 503 Service Unavailable
-//   slow         - sleep for `slowDelayMs` before responding
-//                  (longer than F5 monitor timeout => mark down)
-//   wrong_body   - return 200 but body does NOT contain "OK"
-//                  (F5 HTTP monitor "Receive String" won't match => mark down)
-const FAULT_MODES = ["none", "http_500", "http_503", "slow", "wrong_body"];
-const faultState = {
-    mode: "none",
-    slowDelayMs: 60000, // 60s, far beyond typical F5 monitor timeout (16s)
-    updatedAt: null,
-    updatedBy: null,
-};
-
 // SSE clients subscribed to fault state changes / connection events
 const faultStateSubscribers = new Set();
+
+// Active WebSocket clients: ws -> { timer, interval, id }
+// Used to pause/resume server-side tick when fault is injected.
+const wsClients = new Map();
+
+function pauseWsTicks() {
+    for (const [ws, info] of wsClients) {
+        if (info.timer) {
+            clearInterval(info.timer);
+            info.timer = null;
+        }
+        try {
+            ws.send(
+                JSON.stringify({
+                    type: "fault",
+                    action: "pause",
+                    mode: faultState.mode,
+                    serverIP: getServerIP(),
+                }),
+            );
+        } catch (e) {
+            /* socket may be gone */
+        }
+    }
+    console.log(
+        `[WS] Ticks paused for ${wsClients.size} clients (mode=${faultState.mode})`,
+    );
+}
+
+function resumeWsTicks() {
+    for (const [ws, info] of wsClients) {
+        if (ws.readyState !== ws.OPEN) continue;
+        info.timer = setInterval(() => {
+            if (ws.readyState === ws.OPEN) {
+                const payload = {
+                    type: "tick",
+                    id: info.id,
+                    seq: ++ws._messageCount,
+                    serverIP: getServerIP(),
+                    time: getBeijingTime(),
+                };
+                try {
+                    ws.send(JSON.stringify(payload));
+                } catch (e) {}
+            }
+        }, info.interval);
+        try {
+            ws.send(
+                JSON.stringify({
+                    type: "fault",
+                    action: "resume",
+                    serverIP: getServerIP(),
+                }),
+            );
+        } catch (e) {}
+    }
+    console.log(`[WS] Ticks resumed for ${wsClients.size} clients`);
+}
 
 // Broadcast fault state change to all subscribers
 function broadcastFaultState() {
@@ -124,6 +231,12 @@ function setFaultMode(mode, updatedBy) {
     faultState.updatedAt = getBeijingTime();
     faultState.updatedBy = updatedBy || "unknown";
     broadcastFaultState();
+    // Pause/resume WebSocket server-side ticks based on fault mode
+    if (mode === "none") {
+        resumeWsTicks();
+    } else {
+        pauseWsTicks();
+    }
     return { ok: true, state: getFaultPublicState() };
 }
 
@@ -148,8 +261,29 @@ function recordConnEvent(type, action, meta) {
     };
     connectionLog.unshift(evt);
     if (connectionLog.length > MAX_LOG) connectionLog.length = MAX_LOG;
-    // also push to subscribers
+    // 没有订阅者时直接返回，省掉 JSON.stringify 的开销
+    if (faultStateSubscribers.size === 0) return;
     const payload = JSON.stringify({ type: "conn_event", event: evt });
+    for (const res of faultStateSubscribers) {
+        try {
+            res.write(`data: ${payload}\n\n`);
+        } catch (e) {
+            faultStateSubscribers.delete(res);
+        }
+    }
+}
+
+// 广播当前连接统计（仅在有订阅者时执行序列化）
+function broadcastConnStats() {
+    if (faultStateSubscribers.size === 0) return;
+    const payload = JSON.stringify({
+        type: "conn_stats",
+        stats: {
+            websocket: connStats.websocket,
+            sse: connStats.sse,
+            longPoll: connStats.longPoll,
+        },
+    });
     for (const res of faultStateSubscribers) {
         try {
             res.write(`data: ${payload}\n\n`);
@@ -248,56 +382,6 @@ app.get("/logout", (req, res) => {
 });
 
 // ========================================================================
-// Health check endpoint for F5 HTTP monitor
-// ========================================================================
-// F5's HTTP monitor will GET this path. The monitor is typically configured
-// to expect status 200 and to look for a specific "Receive String" (e.g.
-// "OK") in the response body.
-//
-// Fault modes:
-//   none       -> 200 + body contains "OK"
-//   http_500   -> 500 (status mismatch => mark down)
-//   http_503   -> 503 (status mismatch => mark down)
-//   slow       -> 200, but sleeps `slowDelayMs` first (timeout => mark down)
-//   wrong_body -> 200 but body has no "OK" (Receive String mismatch => mark down)
-app.get("/health", (req, res) => {
-    const mode = faultState.mode;
-
-    if (mode === "http_500") {
-        return res
-            .status(500)
-            .type("text/plain")
-            .send("Internal Server Error (injected)\n");
-    }
-    if (mode === "http_503") {
-        return res
-            .status(503)
-            .type("text/plain")
-            .send("Service Unavailable (injected)\n");
-    }
-    if (mode === "slow") {
-        // do NOT respond; F5 monitor will time out and mark the member down
-        const delay = faultState.slowDelayMs;
-        setTimeout(() => {
-            try {
-                if (!res.headersSent) {
-                    res.status(200).type("text/plain").send("OK\n");
-                }
-            } catch (e) {
-                /* socket closed */
-            }
-        }, delay);
-        return;
-    }
-    if (mode === "wrong_body") {
-        // status is fine, body won't contain "OK", so Receive String check fails
-        return res.status(200).type("text/plain").send("UNHEALTHY-INJECTED\n");
-    }
-    // healthy
-    res.status(200).type("text/plain").send("OK\n");
-});
-
-// ========================================================================
 // Fault injection admin
 // ========================================================================
 
@@ -318,22 +402,49 @@ app.get("/api/fault", (req, res) => {
     res.json(getFaultPublicState());
 });
 
-// JSON API: set fault mode
-// Body: { mode: "none"|"http_500"|"http_503"|"slow"|"wrong_body", slowDelayMs?: number }
+// JSON API: set fault mode / slow delay
+// Body: { mode?: "none"|"http_500"|"http_503"|"slow"|"wrong_body", slowDelayMs?: number }
+// - If `mode` is provided, the fault mode is changed (broadcasts to subscribers).
+// - If only `slowDelayMs` is provided, only the slow delay is updated and no
+//   mode change happens (does NOT broadcast — clients still see the same mode).
+//   This lets admins tune the slow delay without accidentally injecting a fault.
 app.post("/api/fault", (req, res) => {
     const { mode, slowDelayMs } = req.body || {};
-    // Update slowDelayMs FIRST so the broadcast below reflects the new value.
+
+    // Update slowDelayMs FIRST so any subsequent mode broadcast reflects the new value.
+    let delayUpdated = false;
     if (typeof slowDelayMs === "number" && slowDelayMs >= 0) {
         faultState.slowDelayMs = slowDelayMs;
+        delayUpdated = true;
     }
-    const result = setFaultMode(mode, req.ip || "unknown");
-    if (!result.ok) {
-        return res.status(400).json(result);
+
+    // mode is optional — only act on it when present
+    if (mode !== undefined) {
+        const result = setFaultMode(mode, req.ip || "unknown");
+        if (!result.ok) {
+            return res.status(400).json(result);
+        }
+        console.log(
+            `[FAULT] mode=${faultState.mode} slowDelayMs=${faultState.slowDelayMs} by=${faultState.updatedBy}`,
+        );
+        return res.json(result);
     }
-    console.log(
-        `[FAULT] mode=${faultState.mode} slowDelayMs=${faultState.slowDelayMs} by=${faultState.updatedBy}`,
-    );
-    res.json(result);
+
+    // Only delay updated — return current public state without broadcast
+    if (delayUpdated) {
+        console.log(
+            `[FAULT] slowDelayMs=${faultState.slowDelayMs} by=${req.ip || "unknown"} (mode unchanged: ${faultState.mode})`,
+        );
+        return res.json({
+            ok: true,
+            state: getFaultPublicState(),
+            delayOnly: true,
+        });
+    }
+
+    return res
+        .status(400)
+        .json({ ok: false, error: "no mode or slowDelayMs provided" });
 });
 
 // SSE stream of fault state + connection events
@@ -347,9 +458,19 @@ app.get("/api/fault/stream", (req, res) => {
     res.flushHeaders();
     faultStateSubscribers.add(res);
 
-    // send current snapshot immediately
+    // send current snapshot immediately (fault state + initial conn stats)
     res.write(
         `data: ${JSON.stringify({ type: "fault_state", state: getFaultPublicState() })}\n\n`,
+    );
+    res.write(
+        `data: ${JSON.stringify({
+            type: "conn_stats",
+            stats: {
+                websocket: connStats.websocket,
+                sse: connStats.sse,
+                longPoll: connStats.longPoll,
+            },
+        })}\n\n`,
     );
 
     // keep-alive ping every 20s to keep the connection open through F5
@@ -397,6 +518,7 @@ app.get("/api/connection-stats", (req, res) => {
 app.get("/long-poll", (req, res) => {
     const wait = Math.min(parseInt(req.query.wait, 10) || 30000, 120000);
     connStats.longPoll++;
+    broadcastConnStats();
     const startTime = Date.now();
     const clientIP = req.ip || req.connection.remoteAddress;
 
@@ -413,7 +535,8 @@ app.get("/long-poll", (req, res) => {
             time: getBeijingTime(),
             msg: "long poll completed",
         });
-        connStats.longPoll--;
+        connStats.longPoll = Math.max(0, connStats.longPoll - 1);
+        broadcastConnStats();
         recordConnEvent("longPoll", "close", { clientIP, elapsed });
     }, wait);
 
@@ -421,6 +544,7 @@ app.get("/long-poll", (req, res) => {
         if (!res.writableEnded) {
             clearTimeout(timer);
             connStats.longPoll = Math.max(0, connStats.longPoll - 1);
+            broadcastConnStats();
             recordConnEvent("longPoll", "abort", {
                 clientIP,
                 elapsed: Date.now() - startTime,
@@ -442,6 +566,7 @@ app.get("/sse", (req, res) => {
     res.flushHeaders();
 
     connStats.sse++;
+    broadcastConnStats();
     const clientIP = req.ip || req.connection.remoteAddress;
     const interval = Math.max(500, parseInt(req.query.interval, 10) || 1000);
     recordConnEvent("sse", "open", { clientIP, interval });
@@ -470,6 +595,7 @@ app.get("/sse", (req, res) => {
     req.on("close", () => {
         clearInterval(timer);
         connStats.sse = Math.max(0, connStats.sse - 1);
+        broadcastConnStats();
         recordConnEvent("sse", "close", { clientIP, totalEvents: counter });
     });
 });
@@ -484,7 +610,9 @@ const wss = new WebSocketServer({ noServer: true });
 
 wss.on("connection", (ws, req) => {
     connStats.websocket++;
-    const clientIP = req.socket.remoteAddress;
+    broadcastConnStats();
+    // 统一用 req.ip（已配置 trust proxy），回退到 socket 地址
+    const clientIP = req.ip || req.socket.remoteAddress;
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     ws._id = id;
     ws._clientIP = clientIP;
@@ -513,22 +641,28 @@ wss.on("connection", (ws, req) => {
             10,
         ) || 2000,
     );
-    const timer = setInterval(() => {
-        if (ws.readyState === ws.OPEN) {
-            const payload = {
-                type: "tick",
-                id,
-                seq: ++ws._messageCount,
-                serverIP: getServerIP(),
-                time: getBeijingTime(),
-            };
-            try {
-                ws.send(JSON.stringify(payload));
-            } catch (e) {
-                /* ignore */
+    const tickInfo = { timer: null, interval, id };
+    wsClients.set(ws, tickInfo);
+
+    // Only start tick timer if no fault is injected
+    if (faultState.mode === "none") {
+        tickInfo.timer = setInterval(() => {
+            if (ws.readyState === ws.OPEN) {
+                const payload = {
+                    type: "tick",
+                    id,
+                    seq: ++ws._messageCount,
+                    serverIP: getServerIP(),
+                    time: getBeijingTime(),
+                };
+                try {
+                    ws.send(JSON.stringify(payload));
+                } catch (e) {
+                    /* ignore */
+                }
             }
-        }
-    }, interval);
+        }, interval);
+    }
 
     ws.on("message", (raw) => {
         ws._messageCount++;
@@ -556,8 +690,10 @@ wss.on("connection", (ws, req) => {
     });
 
     ws.on("close", (code, reason) => {
-        clearInterval(timer);
+        if (tickInfo.timer) clearInterval(tickInfo.timer);
+        wsClients.delete(ws);
         connStats.websocket = Math.max(0, connStats.websocket - 1);
+        broadcastConnStats();
         recordConnEvent("websocket", "close", {
             clientIP,
             id,

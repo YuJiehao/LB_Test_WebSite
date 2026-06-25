@@ -9,4 +9,5 @@ README.md
 coverage
 .DS_Store
 *.log
+*.sh
 deploy.sh

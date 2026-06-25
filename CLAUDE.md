@@ -66,11 +66,12 @@ kubectl apply -f k8s/service.yaml
 
 | 模式 | `/health` 响应 | F5 monitor 判定 |
 |------|---------------|----------------|
-| `none` | 200 + `OK\n` | UP |
+| `none` | 200 + `HEALTHY\n` | UP |
 | `http_500` | 500 | DOWN |
 | `http_503` | 503 | DOWN |
 | `slow` | 延迟 N 毫秒后 200 | DOWN (timeout) |
-| `wrong_body` | 200 + 不含 `OK` | DOWN (Receive String 不匹配) |
+| `wrong_body` | 200 + 不含 `HEALTHY` | DOWN (Receive String 不匹配) |
+| `reset` | TCP RST（连接重置） | DOWN (连接失败，最可靠) |
 
 状态保存在本 Pod 内存中（`faultState` 对象），Pod 重启后自动恢复为 `none`。
 状态变化通过 SSE `/api/fault/stream` 广播给所有订阅的管理页面。
@@ -103,7 +104,7 @@ kubectl apply -f k8s/service.yaml
        interval 5
        timeout 16
        send "GET /health HTTP/1.1\r\nHost: <vhost>\r\nConnection: close\r\n\r\n"
-       recv "OK"
+       recv "HEALTHY"
    }
    ```
 2. 访问 `/admin/fault`，点击任一故障模式（如 `http_503`）。

@@ -3,95 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="负载均衡器测试站点 —— 会话保持、长连接、F5 故障注入">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔄</text></svg>">
     <title>负载均衡测试站点</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/info.css">
+    <link rel="stylesheet" href="/css/status.css">
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .info-grid {
-            display: grid;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        .info-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            border-left: 4px solid #007bff;
-        }
-        .info-label {
-            font-weight: bold;
-            color: #495057;
-            margin-bottom: 5px;
-        }
-        .info-value {
-            color: #28a745;
-            font-family: 'Courier New', monospace;
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 10px 5px;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        .btn-danger {
-            background-color: #dc3545;
-        }
-        .btn-danger:hover {
-            background-color: #c82333;
-        }
-        .status {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .status-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .refresh-btn {
-            float: right;
-            font-size: 14px;
-            padding: 8px 16px;
-        }
+        /* 页面专属小样式（无法抽到通用类里的部分） */
+        .max-w-800 { max-width: 800px; margin-left: auto; margin-right: auto; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container max-w-800">
         <h1>🔄 负载均衡测试站点</h1>
 
         <% if (isLoggedIn) { %>
-            <div class="status status-success">
+            <div class="status status--success">
                 ✅ 已登录用户: <%= username %> (会话ID: <%= sessionId %>)
             </div>
         <% } %>
 
-        <button class="btn refresh-btn" onclick="location.reload()">🔄 刷新页面</button>
+        <button class="btn btn-sm btn-primary float-right" onclick="location.reload()">🔄 刷新页面</button>
 
         <div class="info-grid">
             <div class="info-item">
@@ -101,7 +34,7 @@
 
             <div class="info-item">
                 <div class="info-label">⏰ 当前时间:</div>
-                <div class="info-value"><%= currentTime %></div>
+                <div class="info-value live-clock"><%= currentTime %></div>
             </div>
 
             <div class="info-item">
@@ -121,29 +54,29 @@
 
             <div class="info-item">
                 <div class="info-label">🔧 用户代理:</div>
-                <div class="info-value" style="word-break: break-all;"><%= userAgent %></div>
+                <div class="info-value"><%= userAgent %></div>
             </div>
 
-            <div class="info-item" style="border-left-color: <%= faultMode === 'none' ? '#28a745' : '#dc3545' %>;">
+            <div class="info-item <%= faultMode === 'none' ? 'info-item--ok' : 'info-item--down' %>">
                 <div class="info-label">🩺 本Pod健康状态 (F5 monitor):</div>
-                <div class="info-value" style="color: <%= faultMode === 'none' ? '#28a745' : '#dc3545' %>;">
+                <div class="info-value <%= faultMode === 'none' ? 'info-value--ok' : 'info-value--down' %>">
                     <% if (faultMode === 'none') { %>✅ 正常 (200 OK) <% } else { %>❌ 已注入故障: <%= faultMode %> <% } %>
                 </div>
             </div>
         </div>
 
-        <div style="text-align: center;">
+        <div class="text-center">
             <% if (!isLoggedIn) { %>
                 <a href="/login" class="btn">🔐 登录测试会话保持</a>
             <% } else { %>
                 <a href="/session-test" class="btn">📊 查看会话保持状态</a>
                 <a href="/logout" class="btn btn-danger">🚪 退出登录</a>
             <% } %>
-            <a href="/long-connection" class="btn" style="background-color:#17a2b8;">🔌 长连接业务</a>
-            <a href="/admin/fault" class="btn" style="background-color:#fd7e14;">⚙️ 故障注入 (F5 monitor)</a>
+            <a href="/long-connection" class="btn btn-info">🔌 长连接业务</a>
+            <a href="/admin/fault" class="btn btn-warning">⚙️ 故障注入 (F5 monitor)</a>
         </div>
 
-        <div style="margin-top: 30px; padding: 15px; background-color: #e9ecef; border-radius: 5px; font-size: 14px;">
+        <div class="help-block">
             <strong>使用说明:</strong>
             <ul>
                 <li>此站点用于测试负载均衡器的会话保持功能</li>
@@ -154,5 +87,7 @@
             </ul>
         </div>
     </div>
+
+    <script src="/js/clock.js"></script>
 </body>
 </html>

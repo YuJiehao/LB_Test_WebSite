@@ -1,0 +1,92 @@
+/* =========================================================================
+ * 状态卡 / Banner / Badge —— 用于「健康 / 故障 / 会话保持成功/失败」等场景
+ * ========================================================================= */
+.status-card {
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    border-left: 5px solid;
+}
+.status-card h3 { margin: 0 0 8px; }
+.status-card p  { margin: 4px 0; }
+
+.status-card--success {
+    background-color: var(--state-success-bg);
+    color: var(--state-success-fg);
+    border-left-color: var(--color-success);
+}
+.status-card--warning {
+    background-color: var(--state-warning-bg);
+    color: var(--state-warning-fg);
+    border-left-color: var(--color-warning);
+}
+.status-card--danger {
+    background-color: var(--state-danger-bg);
+    color: var(--state-danger-fg);
+    border-left-color: var(--color-danger);
+}
+
+/* —— 顶部 banner（fault-admin 用）—— */
+.status-banner {
+    text-align: center;
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    margin: 16px 0 24px;
+    font-size: 18px;
+    font-weight: bold;
+}
+.status-banner--ok {
+    background: var(--state-success-bg);
+    color: var(--state-success-fg);
+    border: 1px solid var(--state-success-border);
+}
+.status-banner--down {
+    background: var(--state-danger-bg);
+    color: var(--state-danger-fg);
+    border: 1px solid var(--state-danger-border);
+}
+
+/* —— 服务器匹配状态条 —— */
+.server-match {
+    font-size: 24px;
+    text-align: center;
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+}
+.server-match--yes {
+    background-color: var(--state-success-bg);
+    color: var(--state-success-fg);
+}
+.server-match--no {
+    background-color: var(--state-danger-bg);
+    color: var(--state-danger-fg);
+}
+
+/* —— Badge（小型标签）—— */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.badge--ok   { background: var(--state-success-bg); color: var(--state-success-fg); }
+.badge--down { background: var(--state-danger-bg);  color: var(--state-danger-fg);  }
+
+/* —— 简易横幅（index/login 用）—— */
+.status {
+    padding: 10px;
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+}
+.status--success {
+    background-color: var(--state-success-bg);
+    color: var(--state-success-fg);
+    border: 1px solid var(--state-success-border);
+}
+.status--error {
+    background-color: var(--state-danger-bg);
+    color: var(--state-danger-fg);
+    border: 1px solid var(--state-danger-border);
+}
