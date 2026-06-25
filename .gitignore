@@ -53,3 +53,7 @@ docker-compose.override.yml
 # ===== K8s 临时 =====
 *.kubeconfig
 kubeconfig
+
+# ===== Agent 指令文件（仅本地使用，不上传 GitHub）=====
+AGENTS.md
+CLAUDE.md
