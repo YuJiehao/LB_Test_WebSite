@@ -81,7 +81,6 @@
     }
 
     // ---- Shim window.alert to route through toast ----
-    const _origAlert = window.alert;
     const _errRe = /失败|错误|err\b|fail|exception/i;
     window.alert = function (msg) {
         if (msg == null) return;

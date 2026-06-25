@@ -149,8 +149,14 @@
         </div>
         <div class="f5-config-wrap">
             <button type="button" class="btn btn-sm btn-secondary f5-copy-btn" id="f5-copy-btn">
-                <%- include('partials/icon', { name: 'file-text', size: 12 }) %>
-                复制到剪贴板
+                <span class="f5-copy-default">
+                    <%- include('partials/icon', { name: 'file-text', size: 12 }) %>
+                    复制到剪贴板
+                </span>
+                <span class="f5-copy-success">
+                    <%- include('partials/icon', { name: 'check', size: 12 }) %>
+                    已复制
+                </span>
             </button>
             <pre class="f5-config" id="f5-config">ltm monitor http load-balancer-test-monitor {
     defaults-from http
@@ -386,6 +392,7 @@
     // ---------------- F5 config copy button ----------------
     const copyBtn = document.getElementById('f5-copy-btn');
     const f5Config = document.getElementById('f5-config');
+    let copyResetTimer = null;
     if (copyBtn && f5Config) {
         copyBtn.addEventListener('click', async () => {
             const text = f5Config.textContent;
@@ -403,9 +410,9 @@
                     document.execCommand('copy');
                     document.body.removeChild(ta);
                 }
-                const orig = copyBtn.innerHTML;
-                copyBtn.innerHTML = '<svg class="icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 已复制';
-                setTimeout(() => { copyBtn.innerHTML = orig; }, 1500);
+                copyBtn.classList.add('is-copied');
+                if (copyResetTimer) clearTimeout(copyResetTimer);
+                copyResetTimer = setTimeout(() => copyBtn.classList.remove('is-copied'), 1500);
             } catch (e) {
                 notice.toast('复制失败: ' + e.message, 'error');
             }

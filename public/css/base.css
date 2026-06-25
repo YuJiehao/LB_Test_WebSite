@@ -132,6 +132,13 @@
     --color-text-dark:      #d4d4d4;
 }
 
+/* 暗色下主色 sky-400 + 白字 contrast 2.06:1 fail WCAG AA (需 4.5:1).
+   反转: 保持亮 primary, 把按钮文字改为深色. */
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn-primary:hover {
+    color: #0c1422;
+}
+
 /* 自动跟随系统 (仅在用户没设过偏好时生效) */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
@@ -160,6 +167,10 @@
         --color-primary-hover:  #0ea5e9;
         --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.4);
         --shadow-focus: 0 0 0 3px rgba(56, 189, 248, 0.4);
+    }
+    :root:not([data-theme]) .btn-primary,
+    :root:not([data-theme]) .btn-primary:hover {
+        color: #0c1422;
     }
 }
 

@@ -5,10 +5,17 @@
    color:   inherits from currentColor
    ========================================================================= %>
 <%
+    const KNOWN_ICONS = ['server','clock','globe','antenna','key','wrench','heart-pulse','check','x','alert-triangle','log-in','log-out','refresh-cw','bar-chart-3','plug','settings','user','rocket','send','home','activity','zap','file-text','arrow-right','power','terminal','cookie','shield','list','moon','sun'];
     const _size = (typeof size !== 'undefined' && size) ? Number(size) : 16;
     const _cls  = (typeof cls !== 'undefined' && cls) ? ' ' + cls : '';
-    const _a11y = (typeof label !== 'undefined' && label) ? '<title>' + label + '</title>' : '';
+    // label is inlined into <title>; HTML-escape to avoid XSS if a caller passes user input
+    const _a11y = (typeof label !== 'undefined' && label)
+        ? '<title>' + String(label).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]) + '</title>'
+        : '';
     const _name = (typeof name !== 'undefined') ? name : '';
+    if (_name && KNOWN_ICONS.indexOf(_name) === -1 && typeof console !== 'undefined') {
+        console.warn('[icon.ejs] unknown icon name: "' + _name + '"');
+    }
 %>
 <svg class="icon<%= _cls %>" width="<%= _size %>" height="<%= _size %>" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="<%= _a11y ? 'false' : 'true' %>" role="img"><%- _a11y %><% if (_name === 'server') { %>
     <rect x="2" y="3" width="20" height="8" rx="2"/>

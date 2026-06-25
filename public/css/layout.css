@@ -122,6 +122,15 @@
     top: 8px;
     right: 8px;
     z-index: 1;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.f5-copy-btn .f5-copy-success { display: none; }
+.f5-copy-btn.is-copied .f5-copy-default { display: none; }
+.f5-copy-btn.is-copied .f5-copy-success { display: inline-flex; align-items: center; gap: 4px; }
+.f5-copy-btn.is-copied {
+    background: var(--state-success-bg);
+    color: var(--state-success-fg);
+    border-color: var(--state-success-border);
 }
 .f5-config {
     background: var(--color-bg-card);

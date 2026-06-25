@@ -22,6 +22,8 @@ app.set("views", path.join(__dirname, "views"));
 // (avoids passing the same data to every render() call)
 // ------------------------------------------------------------------------
 const PKG = require("./package.json");
+const HOSTNAME = os.hostname();  // 进程内不变, 避免每请求 syscall
+const PLATFORM = `${process.platform} ${process.arch}`;
 function formatUptime(seconds) {
     const s = Math.floor(seconds);
     const h = Math.floor(s / 3600);
@@ -37,10 +39,9 @@ app.use((req, res, next) => {
         version: PKG.version,
         description: PKG.description,
         node: process.version,
-        platform: `${process.platform} ${process.arch}`,
-        hostname: os.hostname(),
+        platform: PLATFORM,
+        hostname: HOSTNAME,
         uptime: formatUptime(process.uptime()),
-        startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString(),
     };
     res.locals.repoUrl = "https://github.com/YuJiehao/LB_Test_WebSite";
     next();
