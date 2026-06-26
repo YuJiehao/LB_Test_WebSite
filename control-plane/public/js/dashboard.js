@@ -27,6 +27,9 @@
    * @param {{pod: string, mode: string}} payload - SSE event data
    */
   function mergeStateChange(rowEl, payload) {
+    if (!rowEl || !payload || typeof payload.mode !== 'string') {
+      return;
+    }
     var modeCell = rowEl.querySelector('.pod-row__mode code');
     if (modeCell) {
       modeCell.textContent = payload.mode;
