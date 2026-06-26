@@ -141,8 +141,10 @@ function mountRoutes(app, opts) {
   // ---- View engine & static files ----------------------------------------
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(__dirname, '../../views'));
-  // Serve shared static assets from the root app's public/ directory
+  // Serve shared assets from the root app's public/ (CSS, shared JS, favicon)
   app.use(express.static(path.resolve(__dirname, '../../../public')));
+  // Serve control-plane-specific static files (dashboard.js, etc.)
+  app.use(express.static(path.resolve(__dirname, '../../public')));
 
   // ---- App-info middleware for EJS templates ------------------------------
   app.use(appInfoMiddleware);
