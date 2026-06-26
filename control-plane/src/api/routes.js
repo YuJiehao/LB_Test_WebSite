@@ -147,8 +147,9 @@ function mountRoutes(app, opts) {
   // ---- App-info middleware for EJS templates ------------------------------
   app.use(appInfoMiddleware);
 
-  // ---- JSON body parser for API routes ------------------------------------
+  // ---- Body parsers for API routes -----------------------------------------
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   // Extract actor from request (placeholder until Basic Auth in Phase 6)
   function extractActor(req) {
