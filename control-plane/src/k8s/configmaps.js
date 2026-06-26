@@ -204,9 +204,88 @@ async function getFaultStateConfigMap(client, namespace, podName) {
   }
 }
 
+/**
+ * Thrown when a ConfigMap patch cannot converge after the retry budget
+ * is exhausted. Surfaces the latest `resourceVersion` we saw so the
+ * caller (or operator) can inspect the divergence.
+ *
+ * YAGNI: no retry counter, no backoff metadata — a fixed string
+ * message plus the conflicting `resourceVersion` is enough for now.
+ */
+class PatchConflictError extends Error {
+  constructor(resourceVersion) {
+    super(
+      `ConfigMap patch conflicted after retries (resourceVersion=${resourceVersion || 'unknown'})`
+    );
+    this.name = 'PatchConflictError';
+    this.resourceVersion = resourceVersion;
+  }
+}
+
+const PATCH_MAX_RETRIES = 3;
+
+/**
+ * Patch the fault-state ConfigMap for a Pod using optimistic locking.
+ *
+ * The K8s API rejects a patch referencing a stale `resourceVersion`
+ * with HTTP 409. We refetch the current ConfigMap and retry the patch
+ * up to `PATCH_MAX_RETRIES` times total. If every attempt conflicts,
+ * surface a `PatchConflictError` so the caller can decide whether to
+ * alert, back off, or give up.
+ *
+ * Uses RFC 7396 JSON merge patch (Content-Type: application/merge-patch+json).
+ *
+ * YAGNI: no exponential backoff, no jitter — fixed 3-attempt budget
+ * is plenty for the in-cluster call volume a single admin produces.
+ *
+ * @param {{ configMaps: { readNamespacedConfigMap: Function, patchNamespacedConfigMap: Function } }} client
+ *   The result of `loadK8sClient()`; only the `configMaps` namespace is used.
+ * @param {string} namespace - The namespace the Pod lives in.
+ * @param {string} podName - The Pod name (the ConfigMap is named `fault-state-<podName>`).
+ * @param {{mode: string, slowDelayMs: number, updatedAt: string, updatedBy: string}} state
+ *   The new fault-state fields to write into `data`.
+ * @returns {Promise<{name: string, podName: string, mode: string, slowDelayMs: number, resourceVersion: string}>}
+ *   The mapped updated ConfigMap.
+ */
+async function patchFaultState(client, namespace, podName, state) {
+  const name = FAULT_STATE_NAME_PREFIX + podName;
+  const body = {
+    data: {
+      mode: state.mode,
+      slowDelayMs: String(state.slowDelayMs),
+      updatedAt: state.updatedAt,
+      updatedBy: state.updatedBy,
+    },
+  };
+
+  let lastResourceVersion;
+  for (let attempt = 1; attempt <= PATCH_MAX_RETRIES; attempt++) {
+    const current = await client.configMaps.readNamespacedConfigMap({ namespace, name });
+    lastResourceVersion = current && current.metadata && current.metadata.resourceVersion;
+    try {
+      const updated = await client.configMaps.patchNamespacedConfigMap({
+        namespace,
+        name,
+        headers: { 'Content-Type': 'application/merge-patch+json' },
+        body,
+      });
+      return toPlainConfigMap(updated);
+    } catch (err) {
+      const status = err && (err.statusCode || (err.response && err.response.statusCode));
+      if (status !== 409) {
+        throw err;
+      }
+      // 409: loop and retry with the freshly fetched resourceVersion.
+    }
+  }
+  throw new PatchConflictError(lastResourceVersion);
+}
+
 module.exports = {
   listFaultStateConfigMaps,
   getFaultStateConfigMap,
+  patchFaultState,
+  PatchConflictError,
   toPlainConfigMap,
   reconcileOnStartup,
   defaultFaultState,
