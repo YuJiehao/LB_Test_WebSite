@@ -14,25 +14,13 @@
   const _pods = typeof pods !== 'undefined' ? pods : [];
   const _labelSelector = typeof labelSelector !== 'undefined' ? labelSelector : 'app=load-balancer-test';
 
-  // ---- Build table rows (inline before REFACTOR extraction to pod-row partial) ----
+  // ---- Build table rows (via pod-row partial) ----
   let rowsHtml = '';
   if (_pods.length === 0) {
     rowsHtml = '<tr><td colspan="5" class="pod-table__empty">No pods discovered</td></tr>';
   } else {
     for (const p of _pods) {
-      const mode = p.mode || 'none';
-      const sc = mode === 'none' ? 'status-ok' : mode === 'slow' ? 'status-warn' : 'status-err';
-      const sl = mode === 'none' ? 'Healthy' : mode === 'slow' ? 'Slow' : 'Fault';
-      rowsHtml += `
-        <tr class="pod-row" data-pod="${p.name}">
-          <td class="pod-row__name">${p.name}</td>
-          <td class="pod-row__ip">${p.ip}</td>
-          <td class="pod-row__mode"><code>${mode}</code></td>
-          <td class="pod-row__status"><span class="badge ${sc}">${sl}</span></td>
-          <td class="pod-row__actions">
-            <button type="button" class="btn btn--xs" title="Reset this pod">Reset</button>
-          </td>
-        </tr>`;
+      rowsHtml += include('partials/pod-row', { pod: p });
     }
   }
 
