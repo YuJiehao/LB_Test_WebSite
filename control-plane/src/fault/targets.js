@@ -1,6 +1,7 @@
 'use strict';
 
 const { hashCode } = require('../util/hash');
+const { listPods: listPodsAdapter } = require('../k8s/adapter');
 
 /**
  * Select the Pods that a fault operation should target.
@@ -87,11 +88,9 @@ async function resolveSelector(target, ctx) {
   if (ctx && Array.isArray(ctx.pods)) {
     apiPods = ctx.pods;
   } else if (ctx && ctx.client && ctx.client.pods && typeof ctx.client.pods.listNamespacedPod === 'function') {
-    const response = await ctx.client.pods.listNamespacedPod({
-      namespace,
-      labelSelector: selector,
-    });
-    apiPods = (response && response.items) || [];
+    // Adapter handles positional args + {response, body} envelope for
+    // @kubernetes/client-node@0.22.3.
+    apiPods = await listPodsAdapter(ctx.client, namespace, selector);
   } else {
     return [];
   }

@@ -1,5 +1,7 @@
 'use strict';
 
+const { listPods: listPodsAdapter } = require('./adapter');
+
 /**
  * Map a `V1Pod` API object to the plain `{name, ip, nodeName}` record
  * the rest of the control plane consumes.
@@ -33,11 +35,9 @@ function toPlainPod(apiPod) {
  *   Plain pod records (only the fields Phase 3 actually needs).
  */
 async function listPods(client, labelSelector, namespace) {
-  const response = await client.pods.listNamespacedPod({
-    namespace,
-    labelSelector,
-  });
-  const items = (response && response.items) || [];
+  // Delegates to the v0.22.3-compat adapter that handles positional args
+  // and the {response, body} envelope.
+  const items = await listPodsAdapter(client, namespace, labelSelector);
   return items.map(toPlainPod);
 }
 

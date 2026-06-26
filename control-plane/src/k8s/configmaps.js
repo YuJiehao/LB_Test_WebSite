@@ -7,6 +7,12 @@ const {
   FAULT_STATE_NAME_PREFIX,
 } = require('./labels');
 const { listPods } = require('./pods');
+const {
+  listConfigMaps: listConfigMapsAdapter,
+  createConfigMap: createConfigMapAdapter,
+  readConfigMap: readConfigMapAdapter,
+  patchConfigMap: patchConfigMapAdapter,
+} = require('./adapter');
 
 function parseInt0(value) {
   const n = parseInt(value, 10);
@@ -66,11 +72,9 @@ function toPlainConfigMap(apiCm) {
  * @returns {Promise<Array<{name: string, podName: string, mode: string, slowDelayMs: number, resourceVersion: string}>>}
  */
 async function listFaultStateConfigMaps(client, namespace) {
-  const response = await client.configMaps.listNamespacedConfigMap({
-    namespace,
-    labelSelector: FAULT_STATE_LABEL,
-  });
-  const items = (response && response.items) || [];
+  // Adapter handles positional args + {response, body} envelope for
+  // @kubernetes/client-node@0.22.3.
+  const items = await listConfigMapsAdapter(client, namespace, FAULT_STATE_LABEL);
   // The K8s API filters by labelSelector server-side, but the unit-test
   // mock and any future ad-hoc listing paths may not — apply a defensive
   // client-side filter so this function is the single source of truth for
@@ -163,7 +167,7 @@ async function reconcileOnStartup(client, namespace) {
     }
     const body = defaultFaultState(pod.name, namespace);
     try {
-      await client.configMaps.createNamespacedConfigMap({ namespace, body });
+      await createConfigMapAdapter(client, namespace, body);
       created.push(pod.name);
     } catch (err) {
       errors.push({ podName: pod.name, error: err.message });
@@ -191,10 +195,7 @@ async function reconcileOnStartup(client, namespace) {
 async function getFaultStateConfigMap(client, namespace, podName) {
   const name = FAULT_STATE_NAME_PREFIX + podName;
   try {
-    const apiCm = await client.configMaps.readNamespacedConfigMap({
-      namespace,
-      name,
-    });
+    const apiCm = await readConfigMapAdapter(client, namespace, name);
     return toPlainConfigMap(apiCm);
   } catch (err) {
     if (err && (err.statusCode === 404 || err.response?.statusCode === 404)) {
@@ -288,7 +289,7 @@ async function patchFaultStateInner(client, namespace, podName, state) {
 
   let lastResourceVersion;
   for (let attempt = 1; attempt <= PATCH_MAX_RETRIES; attempt++) {
-    const current = await client.configMaps.readNamespacedConfigMap({ namespace, name });
+    const current = await readConfigMapAdapter(client, namespace, name);
     lastResourceVersion = current && current.metadata && current.metadata.resourceVersion;
     const body = {
       metadata: { resourceVersion: lastResourceVersion },
@@ -300,11 +301,8 @@ async function patchFaultStateInner(client, namespace, podName, state) {
       },
     };
     try {
-      const updated = await client.configMaps.patchNamespacedConfigMap({
-        namespace,
-        name,
-        headers: { 'Content-Type': 'application/merge-patch+json' },
-        body,
+      const updated = await patchConfigMapAdapter(client, namespace, name, body, {
+        contentType: 'application/merge-patch+json',
       });
       return toPlainConfigMap(updated);
     } catch (err) {
