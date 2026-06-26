@@ -92,17 +92,18 @@ const POD_APP_LABEL = 'app=load-balancer-test';
  * recover it without re-parsing the name).
  *
  * @param {string} podName - The Pod this ConfigMap belongs to.
+ * @param {string} namespace - The namespace the Pod lives in.
  * @returns {{apiVersion: string, kind: string, metadata: {name: string, labels: {role: string, pod: string}, namespace: string}, data: {mode: string, slowDelayMs: string, updatedAt: string, updatedBy: string}}}
  *   The K8s API payload suitable for `createNamespacedConfigMap`.
  */
-function defaultFaultState(podName) {
+function defaultFaultState(podName, namespace) {
   return {
     apiVersion: 'v1',
     kind: 'ConfigMap',
     metadata: {
       name: FAULT_STATE_NAME_PREFIX + podName,
       labels: { [ROLE_KEY]: FAULT_STATE_VALUE, pod: podName },
-      namespace: '', // populated per-call
+      namespace,
     },
     data: {
       mode: 'none',
@@ -148,8 +149,7 @@ async function reconcileOnStartup(client, namespace) {
       skipped.push(pod.name);
       continue;
     }
-    const body = defaultFaultState(pod.name);
-    body.metadata.namespace = namespace;
+    const body = defaultFaultState(pod.name, namespace);
     try {
       await client.configMaps.createNamespacedConfigMap({ namespace, body });
       created.push(pod.name);
