@@ -1,23 +1,11 @@
 'use strict';
 
-/**
- * Label-selector string that identifies fault-state ConfigMaps.
- *
- * Single source of truth for the selector — refactored out of the
- * implementation in Task 1.4 REFACTOR so callers (Task 1.5 reconcile,
- * Task 3.1 poll, etc.) can import it without re-declaring the literal.
- */
-const FAULT_STATE_LABEL = 'role=fault-state';
-
-/**
- * Prefix used to derive a fault-state ConfigMap name from a Pod name.
- *
- * Per the design doc: every LB_Test_WebSite Pod has a companion
- * ConfigMap named `fault-state-<pod-name>` carrying that Pod's current
- * fault mode and `slowDelayMs`. The inverse mapping (CM name → pod
- * name) is `name.slice('fault-state-'.length)`.
- */
-const FAULT_STATE_NAME_PREFIX = 'fault-state-';
+const {
+  FAULT_STATE_LABEL,
+  ROLE_KEY,
+  FAULT_STATE_VALUE,
+  FAULT_STATE_NAME_PREFIX,
+} = require('./labels');
 
 function parseInt0(value) {
   const n = parseInt(value, 10);
@@ -87,7 +75,7 @@ async function listFaultStateConfigMaps(client, namespace) {
   // client-side filter so this function is the single source of truth for
   // "which ConfigMaps count as fault state".
   return items
-    .filter((cm) => cm && cm.metadata && cm.metadata.labels && cm.metadata.labels.role === 'fault-state')
+    .filter((cm) => cm && cm.metadata && cm.metadata.labels && cm.metadata.labels[ROLE_KEY] === FAULT_STATE_VALUE)
     .map(toPlainConfigMap);
 }
 
