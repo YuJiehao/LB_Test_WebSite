@@ -64,7 +64,8 @@ function createSemaphore(limit) {
  *  4. All patch operations run in parallel, capped at **5 concurrent** calls
  *     via an inline semaphore.
  *  5. Results are aggregated into `{applied, skipped, errors}`. The function
- *     **never throws** — individual patch failures are captured in `errors[]`.
+ *     **never throws** — individual ConfigMap read or patch failures are
+ *     captured in `errors[]`.
  *
  * @param {{type: string, [k: string]: any}} target
  *   The target spec passed through to {@link selectTargets}.
@@ -100,13 +101,13 @@ async function applyFault(target, mode, slowDelayMs, ctx) {
 
   const tasks = targetPods.map((pod) =>
     semaphore.run(async () => {
-      const cm = await getFaultStateConfigMap(ctx.client, ctx.namespace, pod.name);
-      if (!cm) {
-        skipped.push(pod.name);
-        return;
-      }
-
       try {
+        const cm = await getFaultStateConfigMap(ctx.client, ctx.namespace, pod.name);
+        if (!cm) {
+          skipped.push(pod.name);
+          return;
+        }
+
         await patchFaultState(ctx.client, ctx.namespace, pod.name, state, {
           timeoutMs,
         });

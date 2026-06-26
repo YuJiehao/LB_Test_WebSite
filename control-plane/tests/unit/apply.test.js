@@ -166,6 +166,24 @@ describe('applyFault()', () => {
     expect(result.skipped).toEqual([]);
   });
 
+  test('getFaultStateConfigMap read failure is captured in errors[] (never throws)', async () => {
+    // Verify the "never throws" contract holds even when ConfigMap reads
+    // fail — transient K8s API errors should not discard the whole apply.
+    getFaultStateConfigMap
+      .mockResolvedValueOnce({ name: 'fault-state-web-0', podName: 'web-0', mode: 'none', slowDelayMs: 0, resourceVersion: '1' })
+      .mockRejectedValueOnce(new Error('etcd timeout'))
+      .mockResolvedValueOnce({ name: 'fault-state-web-2', podName: 'web-2', mode: 'none', slowDelayMs: 0, resourceVersion: '2' });
+
+    const result = await applyFault(TARGET, MODE, SLOW_DELAY_MS, CTX);
+
+    expect(result.applied).toEqual(expect.arrayContaining(['web-0', 'web-2']));
+    expect(result.applied).toHaveLength(2);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].podName).toBe('web-1');
+    expect(result.errors[0].error).toMatch(/etcd timeout/);
+    expect(result.skipped).toEqual([]);
+  });
+
   test('empty targets: selectTargets returns [] -> empty result', async () => {
     selectTargets.mockResolvedValue([]);
 

@@ -102,7 +102,14 @@
   - Inherited: trailing newlines, no ESLint config
 
 ### Task 2.2: ConfigMap patch with optimistic locking
-- status: pending
+- status: **DONE** (commits 20a64b4..861c8fd, review clean after optimistic-locking fix)
+- TDD: 3 commits (RED `f04eea4` → GREEN `f7ff01b` → REFACTOR `d2b4a85`) + review-fix `861c8fd`
+- Test: 28/28 pass (4 new configmap-patch tests)
+- **Critical fix applied**: reviewer found `resourceVersion` was never passed in patch body — K8s never returned 409, retry loop was dead code. Fix: moved body inside loop, added `metadata.resourceVersion`, updated tests to assert per-attempt version forwarding.
+- **Minor findings (record for final review):**
+  - `timeoutMs: 0` uses next-tick setTimeout, not true "no timeout" (no real-world use case)
+  - Whole-operation timeout covers all retries (not per-attempt) — acceptable for in-cluster
+  - No lint config (pre-existing)
 
 ### Task 2.3: Apply orchestrator with parallelism
 - status: pending
