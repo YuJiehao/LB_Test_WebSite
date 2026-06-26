@@ -19,7 +19,7 @@ spec:
         - name: harbor-regcred
       containers:
       - name: control-plane
-        image: 172.20.20.250/webapps/control-plane:v0.1
+        image: 172.20.20.250/webapps/control-plane:v0.3
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
