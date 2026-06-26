@@ -1,0 +1,21 @@
+<%# =========================================================================
+   head.ejs --  shared HTML head
+   required:  title       (string)  page title
+   optional:  description (string)  meta description
+   optional:  extraCss    (string)  page-specific style block
+   usage: include partials/head with title=...
+   ========================================================================= %>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<meta name="description" content="<%= typeof description !== 'undefined' && description ? description : '负载均衡测试站点 —— 会话保持、长连接、F5 故障注入' %>">
+<meta name="color-scheme" content="light">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/info.css">
+<link rel="stylesheet" href="/css/status.css">
+<link rel="stylesheet" href="/css/layout.css">
+<link rel="stylesheet" href="/css/notice.css">
+<% if (typeof extraCss !== 'undefined' && extraCss) { %><%- extraCss %><% } %>
+<script src="/js/theme.js"></script>
+<script src="/js/notice.js"></script>

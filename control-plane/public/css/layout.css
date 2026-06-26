@@ -1,0 +1,163 @@
+/* =========================================================================
+ * 布局组件 —— 卡片、统计网格、日志区、表单行
+ * ========================================================================= */
+
+/* —— 通用卡片（long-connection / fault-admin 共用）—— */
+.card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    margin-bottom: 20px;
+    background: var(--color-bg-card-alt);
+}
+.card h3 { margin-top: 0; }
+
+/* —— 故障模式卡片（fault-admin 独有，但放 layout 里方便复用）—— */
+.mode-card {
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    margin-bottom: 12px;
+    background: var(--color-bg-card-alt);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.mode-card:hover {
+    border-color: var(--color-primary);
+    background: #f0f7ff;
+}
+.mode-card.active {
+    border-color: var(--color-danger);
+    background: var(--state-warning-bg);
+}
+.mode-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.mode-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-strong);
+    flex-shrink: 0;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+.mode-dot--active {
+    background: var(--color-danger);
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.2);
+}
+.mode-desc {
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+.mode-f5 {
+    font-size: 12px;
+    color: var(--color-text-strong);
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: var(--color-bg-muted);
+    border-radius: var(--radius-input);
+    font-family: var(--font-mono);
+}
+
+/* —— 统计网格（WS/SSE/LP 实时计数）—— */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.stat-box {
+    text-align: center;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+}
+
+.stat-num {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+}
+
+/* —— 日志区（暗色主题终端风）—— */
+.log-area {
+    background: var(--color-bg-dark);
+    color: var(--color-text-dark);
+    padding: 12px;
+    border-radius: var(--radius-card);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    max-height: 320px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.log-area .log-line          { display: block; }
+.log-area .log-ws            { color: var(--log-color-ws); }
+.log-area .log-sse           { color: var(--log-color-sse); }
+.log-area .log-lp            { color: var(--log-color-lp); }
+.log-area .log-error         { color: var(--log-color-error); }
+.log-area .log-fault         { color: var(--log-color-fault); font-weight: bold; }
+
+/* —— F5 配置示例代码块 —— */
+.f5-config-wrap {
+    position: relative;
+    margin: 0 0 var(--space-4);
+}
+.f5-copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.f5-copy-btn .f5-copy-success { display: none; }
+.f5-copy-btn.is-copied .f5-copy-default { display: none; }
+.f5-copy-btn.is-copied .f5-copy-success { display: inline-flex; align-items: center; gap: 4px; }
+.f5-copy-btn.is-copied {
+    background: var(--state-success-bg);
+    color: var(--state-success-fg);
+    border-color: var(--state-success-border);
+}
+.f5-config {
+    background: var(--color-bg-card);
+    padding: 12px 14px;
+    padding-right: 140px;  /* 留出复制按钮空间 */
+    border-radius: var(--radius-input);
+    font-size: 13px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    margin: 0;
+    line-height: 1.6;
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+}
+
+/* —— 行内说明文字 —— */
+.note {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-top: 6px;
+}
+
+/* —— 工具类 —— */
+.text-center   { text-align: center; }
+.text-muted    { color: var(--color-text-muted); }
+.muted-title   { text-align: center; color: var(--color-text-muted); margin-top: -10px; }
+.float-right   { float: right; }
+.mt-lg         { margin-top: 20px; }
+.mt-xl         { margin-top: 30px; }
+.full-width    { width: 100%; }

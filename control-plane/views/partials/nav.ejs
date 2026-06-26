@@ -1,0 +1,46 @@
+<%# =========================================================================
+   nav.ejs --  Control Plane sticky top nav
+   required:  active   (string)  current page: home
+   optional:  serverIP (string)  current Pod IP, shown top-right
+   ========================================================================= %>
+<%
+    const _active = (typeof active !== 'undefined') ? active : 'home';
+    const _ip     = (typeof serverIP !== 'undefined' && serverIP) ? serverIP : '';
+    const links = [
+        { key: 'home', href: '/', label: 'Fault Control', icon: 'activity' },
+    ];
+%>
+<nav class="top-nav" aria-label="主导航">
+    <a href="/" class="top-nav__brand">
+        <%- include('icon', { name: 'shield', size: 18 }) %>
+        <span>LB Fault Control</span>
+    </a>
+    <ul class="top-nav__links">
+        <% links.forEach(function(l) { %>
+            <li>
+                <a href="<%= l.href %>"
+                   class="top-nav__link<%= l.key === _active ? ' top-nav__link--active' : '' %>"
+                   <% if (l.key === _active) { %>aria-current="page"<% } %>>
+                    <%- include('icon', { name: l.icon, size: 14 }) %>
+                    <span><%= l.label %></span>
+                </a>
+            </li>
+        <% }); %>
+    </ul>
+    <% if (_ip) { %>
+        <div class="top-nav__meta">
+            <span title="当前 Pod IP">
+                <%- include('icon', { name: 'server', size: 12 }) %>
+                <%= _ip %>
+            </span>
+            <span title="服务器时间">
+                <span class="live-dot"></span>
+                <span class="live-clock">--:--:--</span>
+            </span>
+        </div>
+    <% } %>
+    <button type="button" id="theme-toggle" class="top-nav__theme" aria-label="切换主题">
+        <span class="theme-icon-moon"><%- include('icon', { name: 'moon', size: 14 }) %></span>
+        <span class="theme-icon-sun" style="display:none;"><%- include('icon', { name: 'sun', size: 14 }) %></span>
+    </button>
+</nav>

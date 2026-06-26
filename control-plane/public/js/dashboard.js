@@ -1,17 +1,13 @@
 /**
- * dashboard.js -- Real-time SSE updates for the control-plane dashboard
+ * dashboard.js — Control-plane dashboard interactivity
  *
- * Listens on GET /api/events and:
- *  - pod_state_change: updates the target row's mode cell + status badge
- *  - drift_detected:   fires a warn toast via the global notice system
+ * Responsibilities:
+ *  - Radio-button ↔ inline-input enable/disable
+ *  - AJAX form submission (no page reload)
+ *  - SSE real-time pod-state updates
+ *  - Toast feedback for errors / drift
  *
- * The mergeStateChange function is exported as a named export so it can
- * be unit-tested via Jest + JSDOM without a browser.
- *
- * Strategy: IIFE with CommonJS detection.  When loaded via <script> in
- * the browser, it exposes mergeStateChange on window and auto-inits on
- * DOMContentLoaded.  When require'd in Node (Jest), it sets module.exports
- * and does NOT touch window.
+ * Exports: mergeStateChange, initDashboard (for Jest tests)
  */
 (function () {
   'use strict';
@@ -46,20 +42,157 @@
   }
 
   // -----------------------------------------------------------------------
-  //  initDashboard — wire up EventSource listeners
+  //  Radio → inline-input toggle
   // -----------------------------------------------------------------------
 
   /**
-   * Open an EventSource to /api/events and register handlers for
-   * pod_state_change and drift_detected.
+   * Enable the text / number input that belongs to the selected radio and
+   * disable all others.  Each inline input carries a `data-target-type`
+   * attribute matching the radio value so the mapping is explicit.
    */
-  function initDashboard() {
+  function syncInlineInputs(form) {
+    var checked = form.querySelector('input[name="target[type]"]:checked');
+    var activeType = checked ? checked.value : 'all';
+
+    var inputs = form.querySelectorAll('.action-form__inline-input[data-target-type]');
+    for (var i = 0; i < inputs.length; i++) {
+      inputs[i].disabled = (inputs[i].getAttribute('data-target-type') !== activeType);
+    }
+  }
+
+  /**
+   * Attach change listeners to every target-type radio in the given form.
+   */
+  function wireInlineInputs(form) {
+    var radios = form.querySelectorAll('input[name="target[type]"]');
+    for (var i = 0; i < radios.length; i++) {
+      radios[i].addEventListener('change', function () {
+        syncInlineInputs(form);
+      });
+    }
+    // initial state
+    syncInlineInputs(form);
+  }
+
+  // -----------------------------------------------------------------------
+  //  AJAX form submission
+  // -----------------------------------------------------------------------
+
+  /**
+   * Serialise a <form> whose inputs use bracket notation
+   * (e.g. target[type], target[pod]) into a flat JSON object.
+   */
+  function serialiseForm(form) {
+    var fd = new FormData(form);
+    var obj = {};
+    fd.forEach(function (val, key) {
+      // Only include non-empty values for optional fields
+      if (val === '' || val === undefined) return;
+      obj[key] = val;
+    });
+    return obj;
+  }
+
+  /**
+   * Build the JSON body the control-plane API expects from flat
+   * FormData-style keys.
+   *
+   * FormData gives us:
+   *   target[type]   = "single"
+   *   target[pod]    = "load-balancer-test-deployment-xxx"
+   *   target[selector]    = "app=lb-test"
+   *   target[percent]     = "25"
+   *   mode           = "http_500"
+   *   slowDelayMs    = "3000"
+   *
+   * API expects:
+   *   { target: { type: "single", pod: "..." }, mode: "http_500", slowDelayMs: 3000 }
+   */
+  function buildPayload(flat) {
+    var target = { type: flat['target[type]'] || 'all' };
+    if (target.type === 'single' && flat['target[pod]']) {
+      target.pod = flat['target[pod]'];
+    }
+    if (target.type === 'selector' && flat['target[selector]']) {
+      target.selector = flat['target[selector]'];
+    }
+    if (target.type === 'canary' && flat['target[percent]']) {
+      target.percent = parseInt(flat['target[percent]'], 10) || 0;
+    }
+
+    var payload = {
+      target: target,
+      mode: flat['mode'] || 'none',
+    };
+    if (flat['slowDelayMs']) {
+      payload.slowDelayMs = parseInt(flat['slowDelayMs'], 10) || 0;
+    }
+    return payload;
+  }
+
+  /**
+   * Intercept the fault-apply form and POST as JSON via fetch().
+   */
+  function wireFormSubmit(form) {
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Applying…';
+      }
+
+      var flat = serialiseForm(form);
+      var payload = buildPayload(flat);
+
+      fetch('/api/fault/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then(function (res) {
+          return res.json().then(function (body) {
+            return { ok: res.ok, status: res.status, body: body };
+          });
+        })
+        .then(function (result) {
+          if (result.ok) {
+            var count =
+              result.body && Array.isArray(result.body.applied)
+                ? result.body.applied.length
+                : 0;
+            window.notice.toast('Fault applied to ' + count + ' pod(s)', 'success');
+          } else {
+            var msg =
+              (result.body && result.body.error) ||
+              'Unexpected error (HTTP ' + result.status + ')';
+            window.notice.toast(msg, 'error');
+          }
+        })
+        .catch(function (err) {
+          window.notice.toast('Request failed: ' + err.message, 'error');
+        })
+        .finally(function () {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Apply Fault';
+          }
+        });
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  //  SSE — EventSource for real-time pod state
+  // -----------------------------------------------------------------------
+
+  function initSSE() {
     var es;
 
     try {
       es = new EventSource('/api/events');
     } catch (_) {
-      return; // EventSource not available (e.g. no browser)
+      return; // EventSource not available
     }
 
     es.addEventListener('pod_state_change', function (e) {
@@ -88,6 +221,19 @@
 
     // Expose EventSource handle for debugging / testing
     window.__dashboardSSE = es;
+  }
+
+  // -----------------------------------------------------------------------
+  //  initDashboard — wire everything up
+  // -----------------------------------------------------------------------
+
+  function initDashboard() {
+    var form = document.querySelector('.action-form');
+    if (form) {
+      wireInlineInputs(form);
+      wireFormSubmit(form);
+    }
+    initSSE();
   }
 
   // -----------------------------------------------------------------------

@@ -141,6 +141,50 @@ function createBackoffTracker() {
   };
 }
 
+// Allow the caller to inject mocks for unit testing.
+function getPollHelpers(ctx) {
+  return {
+    _pollPod: ctx._pollPod || pollPod,
+    _detectDrift: ctx._detectDrift || detectDrift,
+  };
+}
+
+/**
+ * Emit a `pod_state_change` event on the bus for every successfully
+ * polled Pod so SSE clients receive real-time status updates.
+ *
+ * @param {object} bus  event bus with `.emit(name, data)` method
+ * @param {object} pod  pod name record
+ * @param {object} actual  poll result from _pollPod
+ */
+function emitPodState(bus, pod, actual) {
+  if (!bus || typeof bus.emit !== 'function') return;
+  try {
+    bus.emit('pod_state_change', {
+      pod: pod.name,
+      mode: actual.mode,
+      slowDelayMs: actual.slowDelayMs,
+      reachable: actual.reachable,
+    });
+  } catch (_) { /* bus error is non-fatal */ }
+}
+
+/**
+ * Emit a `drift_detected` event on the bus when the polling loop
+ * discovers a mismatch between desired and actual fault state.
+ */
+function emitDrift(bus, pod, desired, actual, drift) {
+  if (!bus || typeof bus.emit !== 'function') return;
+  try {
+    bus.emit('drift_detected', {
+      pod: pod.name,
+      field: drift.field,
+      desiredMode: desired.mode,
+      actualMode: actual.mode,
+    });
+  } catch (_) { /* bus error is non-fatal */ }
+}
+
 /**
  * Start the background state-observation loop.
  *
@@ -148,28 +192,28 @@ function createBackoffTracker() {
  *  1. Fetches the current Pod list and ConfigMap set.
  *  2. Polls each Pod's `/api/fault` endpoint (skipping Pods still in
  *     exponential backoff from a prior unreachable poll).
- *  3. Compares actual (Pod memory) state against desired (ConfigMap) state
+ *  3. Emits `pod_state_change` via the event bus for every reachable Pod
+ *     so SSE clients receive real-time updates.
+ *  4. Compares actual (Pod memory) state against desired (ConfigMap) state
  *     via {@link detectDrift}.
- *  4. When drift is detected, patches the ConfigMap to match the actual
- *     state with `updatedBy: "reconciled:<field>"` so future comparisons
- *     suppress the alert.
- *  5. Unreachable Pods are tracked with exponential backoff (capped at 60s).
+ *  5. When drift is detected, patches the ConfigMap to match the actual
+ *     state and emits `drift_detected` via the event bus.
+ *  6. Unreachable Pods are tracked with exponential backoff (capped at 60s).
  *     Once a Pod responds successfully its backoff is reset.
  *
  * The first tick runs immediately (no initial delay). The returned `stop`
  * handle cancels the next scheduled tick and prevents any in-flight tick
  * from scheduling a new one.
  *
- * @param {{client: object, namespace: string, intervalMs?: number}} ctx
+ * @param {{client: object, namespace: string, intervalMs?: number, bus?: object}} ctx
  *   Runtime context. `client` (K8s API client) and `namespace` are required.
  *   `intervalMs` defaults to `DEFAULT_INTERVAL_MS` (3000ms).
+ *   `bus` (optional) event bus for SSE broadcast.
  * @returns {{stop: () => void}} Handle to shut down the loop.
  */
 function startPollingLoop(ctx) {
   const intervalMs = ctx.intervalMs || DEFAULT_INTERVAL_MS;
-  // Allow tests to inject mock implementations via ctx._pollPod / ctx._detectDrift.
-  const _pollPod = ctx._pollPod || pollPod;
-  const _detectDrift = ctx._detectDrift || detectDrift;
+  const { _pollPod, _detectDrift } = getPollHelpers(ctx);
   const backoff = createBackoffTracker();
   let timer = null;
   let stopped = false;
@@ -195,8 +239,9 @@ function startPollingLoop(ctx) {
           continue;
         }
 
-        // Pod responded — reset backoff.
+        // Pod responded — reset backoff and emit live state.
         backoff.reset(pod.name);
+        emitPodState(ctx.bus, pod, actual);
 
         const desired = cmByPod.get(pod.name);
         if (!desired) continue; // No ConfigMap for this Pod — skip.
@@ -209,11 +254,11 @@ function startPollingLoop(ctx) {
             updatedAt: new Date().toISOString(),
             updatedBy: `reconciled:${drift.field}`,
           });
+          emitDrift(ctx.bus, pod, desired, actual, drift);
         }
       }
     } catch (_err) {
       // Swallow errors in a single tick — the loop must keep running.
-      // A future observability hook (event bus) would surface this.
     }
 
     if (!stopped) {

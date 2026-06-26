@@ -5,6 +5,7 @@ const { loadK8sClient } = require('./k8s/client');
 const { basicAuthMiddleware } = require('./auth');
 const { reconcileOnStartup } = require('./k8s/configmaps');
 const { startPollingLoop } = require('./fault/poll');
+const { bus } = require('./events/bus');
 
 const app = express();
 
@@ -45,7 +46,7 @@ async function start() {
     }
 
     // Start background drift-detection polling loop.
-    pollingLoop = startPollingLoop({ client, namespace: NAMESPACE });
+    pollingLoop = startPollingLoop({ client, namespace: NAMESPACE, bus });
     console.log(`control-plane: drift-detection polling loop started`);
   }
 

@@ -1,0 +1,30 @@
+<%#
+   =========================================================================
+   pod-row.ejs --  Single row for the dashboard pod table
+   Required:  pod (object) with {name, ip, mode, slowDelayMs, ...}
+   =========================================================================
+%><%
+  // Status helper — pick a CSS class based on mode
+  const _mode = typeof pod.mode !== 'undefined' ? pod.mode : 'none';
+  function _statusClass(m) {
+    if (m === 'none') return 'status-ok';
+    if (m === 'slow') return 'status-warn';
+    return 'status-err';
+  }
+  function _statusLabel(m) {
+    if (m === 'none') return 'Healthy';
+    if (m === 'slow') return 'Slow';
+    return 'Fault';
+  }
+  const _sc = _statusClass(_mode);
+  const _sl = _statusLabel(_mode);
+%>
+<tr class="pod-row" data-pod="<%= pod.name %>">
+  <td class="pod-row__name"><%= pod.name %></td>
+  <td class="pod-row__ip"><%= pod.ip %></td>
+  <td class="pod-row__mode"><code><%= _mode %></code></td>
+  <td class="pod-row__status"><span class="badge <%= _sc %>"><%= _sl %></span></td>
+  <td class="pod-row__actions">
+    <button type="button" class="btn btn--xs" title="Reset this pod">Reset</button>
+  </td>
+</tr>

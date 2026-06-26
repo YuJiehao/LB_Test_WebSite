@@ -1,0 +1,52 @@
+<%# =========================================================================
+   footer.ejs --  app metadata strip
+   data:  res.locals.appInfo (set by app.js middleware)
+           res.locals.repoUrl
+   ========================================================================= %>
+<% const _info = (typeof appInfo !== 'undefined' && appInfo) ? appInfo : null; %>
+<% const _repo = (typeof repoUrl !== 'undefined' && repoUrl) ? repoUrl : ''; %>
+<footer class="app-footer" aria-label="应用元信息">
+    <div class="app-footer__inner">
+        <div class="app-footer__col app-footer__col--app">
+            <% if (_info) { %>
+                <span class="app-footer__name"><%= _info.name %></span>
+                <span class="app-footer__sep">·</span>
+                <span class="app-footer__ver">v<%= _info.version %></span>
+            <% } %>
+        </div>
+
+        <div class="app-footer__col app-footer__col--runtime">
+            <% if (_info) { %>
+                <span class="app-footer__kv" title="Node.js 版本">
+                    <span class="app-footer__kv-label">Node</span>
+                    <span class="app-footer__kv-value"><%= _info.node %></span>
+                </span>
+                <span class="app-footer__kv" title="操作系统">
+                    <span class="app-footer__kv-label">OS</span>
+                    <span class="app-footer__kv-value"><%= _info.platform %></span>
+                </span>
+                <span class="app-footer__kv" title="Pod/容器主机名">
+                    <span class="app-footer__kv-label">Host</span>
+                    <span class="app-footer__kv-value"><%= _info.hostname %></span>
+                </span>
+                <span class="app-footer__kv" title="进程启动到现在的时长">
+                    <span class="app-footer__kv-label">Up</span>
+                    <span class="app-footer__kv-value"><%= _info.uptime %></span>
+                </span>
+            <% } %>
+        </div>
+
+        <div class="app-footer__col app-footer__col--links">
+            <% if (_repo) { %>
+                <a href="<%= _repo %>" target="_blank" rel="noopener" class="app-footer__link" title="GitHub 仓库">
+                    <%- include('icon', { name: 'file-text', size: 12 }) %>
+                    <span>Source</span>
+                </a>
+            <% } %>
+            <a href="/health" target="_blank" rel="noopener" class="app-footer__link" title="F5 monitor 探测目标">
+                <%- include('icon', { name: 'heart-pulse', size: 12 }) %>
+                <span>Health</span>
+            </a>
+        </div>
+    </div>
+</footer>
