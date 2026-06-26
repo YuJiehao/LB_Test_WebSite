@@ -55,4 +55,40 @@ async function pollPod(pod, timeoutMs = 5000) {
   }
 }
 
-module.exports = { pollPod, fetchWithTimeout };
+/**
+ * Compare desired (ConfigMap) state against actual (Pod memory) state.
+ *
+ * Pure function — no I/O. Returns `{drift: true, field}` when the two
+ * states differ in `mode` or `slowDelayMs` (checked in order). Returns
+ * `{drift: false}` when they match.
+ *
+ * Special case: if `actual.updatedBy` starts with `"reconciled:"`, the
+ * change was made by the control plane's own reconciliation loop — this
+ * is NOT drift (suppresses oscillation).
+ *
+ * @param {{mode: string, slowDelayMs: number, updatedBy?: string}} desired
+ *   The fault state from the ConfigMap.
+ * @param {{mode: string, slowDelayMs: number, updatedBy?: string}} actual
+ *   The fault state reported by the Pod's /api/fault endpoint.
+ * @returns {{drift: true, field: string} | {drift: false}}
+ *   Drift verdict and the mismatched field (when drift is true).
+ */
+function detectDrift(desired, actual) {
+  // Self-reconciliation suppression: if the control plane already
+  // reconciled this change, don't flag it as drift again.
+  if (actual.updatedBy && actual.updatedBy.startsWith('reconciled:')) {
+    return { drift: false };
+  }
+
+  if (desired.mode !== actual.mode) {
+    return { drift: true, field: 'mode' };
+  }
+
+  if (desired.slowDelayMs !== actual.slowDelayMs) {
+    return { drift: true, field: 'slowDelayMs' };
+  }
+
+  return { drift: false };
+}
+
+module.exports = { pollPod, fetchWithTimeout, detectDrift };
