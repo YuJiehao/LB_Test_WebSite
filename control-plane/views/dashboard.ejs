@@ -4,7 +4,7 @@
    Renders via layout.ejs which provides the HTML shell (head/nav/footer).
    Required (from res.render):
      title        (string)  page title
-     pods         (Array)   discovered pod list
+     pods         (Array)   discovered pod list with {name, ip, mode, ...}
      labelSelector (string) current label selector filter
    =========================================================================
 %><%
@@ -13,6 +13,28 @@
   const _serverIP = typeof serverIP !== 'undefined' ? serverIP : '';
   const _pods = typeof pods !== 'undefined' ? pods : [];
   const _labelSelector = typeof labelSelector !== 'undefined' ? labelSelector : 'app=load-balancer-test';
+
+  // ---- Build table rows (inline before REFACTOR extraction to pod-row partial) ----
+  let rowsHtml = '';
+  if (_pods.length === 0) {
+    rowsHtml = '<tr><td colspan="5" class="pod-table__empty">No pods discovered</td></tr>';
+  } else {
+    for (const p of _pods) {
+      const mode = p.mode || 'none';
+      const sc = mode === 'none' ? 'status-ok' : mode === 'slow' ? 'status-warn' : 'status-err';
+      const sl = mode === 'none' ? 'Healthy' : mode === 'slow' ? 'Slow' : 'Fault';
+      rowsHtml += `
+        <tr class="pod-row" data-pod="${p.name}">
+          <td class="pod-row__name">${p.name}</td>
+          <td class="pod-row__ip">${p.ip}</td>
+          <td class="pod-row__mode"><code>${mode}</code></td>
+          <td class="pod-row__status"><span class="badge ${sc}">${sl}</span></td>
+          <td class="pod-row__actions">
+            <button type="button" class="btn btn--xs" title="Reset this pod">Reset</button>
+          </td>
+        </tr>`;
+    }
+  }
 
   // ---- Hero section ----
   const heroHtml = `
@@ -24,10 +46,45 @@
     </section>
   `;
 
-  const bodyHtml = heroHtml;
+  // ---- Label filter bar ----
+  const filterHtml = `
+    <section class="filter-bar">
+      <form class="filter-bar__form" id="label-filter" action="/" method="GET">
+        <label for="label-selector" class="filter-bar__label">Label selector</label>
+        <input type="text" id="label-selector" name="selector"
+               class="filter-bar__input"
+               value="${_labelSelector}" placeholder="app=load-balancer-test">
+        <button type="submit" class="btn btn--sm">Filter</button>
+      </form>
+    </section>
+  `;
+
+  // ---- Pod table ----
+  const tableHtml = `
+    <section class="pod-table-section">
+      <h2 class="section-title">Pods</h2>
+      <div class="table-wrap">
+        <table class="pod-table">
+          <thead>
+            <tr>
+              <th>Pod Name</th>
+              <th>IP</th>
+              <th>Current Mode</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  const bodyHtml = heroHtml + filterHtml + tableHtml;
 %><%- include('layout', {
   title: _title,
   active: _active,
   serverIP: _serverIP,
   body: bodyHtml,
+  extraCss: '<style>.dashboard-hero{background:var(--color-bg-card);border-radius:var(--radius-card);padding:var(--space-6);margin-bottom:var(--space-4)}.dashboard-hero__inner h1{font-size:1.5rem;font-weight:700;margin:0 0 var(--space-1)}.dashboard-hero__sub{color:var(--color-text-muted);margin:0}.filter-bar{margin-bottom:var(--space-4)}.filter-bar__form{display:flex;align-items:center;gap:var(--space-2)}.filter-bar__label{font-size:0.875rem;font-weight:600;white-space:nowrap}.filter-bar__input{flex:1;max-width:360px;padding:var(--space-1) var(--space-2);border:1px solid var(--color-border, #d1d5db);border-radius:var(--radius-input);background:var(--color-bg-card);color:var(--color-text);font-family:var(--font-mono);font-size:0.875rem}.btn{display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-3);border:1px solid var(--color-primary);border-radius:var(--radius-btn);background:var(--color-primary);color:#fff;cursor:pointer;font-size:0.875rem;font-weight:500}.btn--sm{padding:var(--space-1) var(--space-2);font-size:0.8125rem}.btn--xs{padding:2px var(--space-1);font-size:0.75rem;border-color:var(--color-text-muted);background:transparent;color:var(--color-text)}.table-wrap{overflow-x:auto}.pod-table{width:100%;border-collapse:collapse;font-size:0.875rem}.pod-table th,.pod-table td{padding:var(--space-2) var(--space-3);text-align:left;border-bottom:1px solid var(--color-border,#e5e7eb)}.pod-table thead th{font-weight:600;color:var(--color-text-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;background:var(--color-bg-muted)}.pod-table tbody tr:hover{background:var(--color-bg-muted)}.pod-table__empty{text-align:center;color:var(--color-text-muted);padding:var(--space-6)}.pod-row__name{font-weight:600;font-family:var(--font-mono)}.pod-row__ip{font-family:var(--font-mono)}.pod-row__mode code{background:var(--color-bg-muted);padding:2px var(--space-1);border-radius:4px;font-size:0.8125rem}.badge{display:inline-block;padding:2px var(--space-2);border-radius:var(--radius-pill);font-size:0.75rem;font-weight:600;text-transform:uppercase}.badge.status-ok{background:#d1fae5;color:#065f46}.badge.status-warn{background:#fef3c7;color:#92400e}.badge.status-err{background:#fee2e2;color:#991b1b}.section-title{font-size:1.125rem;font-weight:700;margin:0 0 var(--space-3)}</style>',
 }) %>
