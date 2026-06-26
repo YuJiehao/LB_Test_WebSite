@@ -22,7 +22,16 @@
 ## Phase 1 — Backend Foundation
 
 ### Task 1.1: Project scaffold + healthz
-- status: pending
+- status: **DONE** (commits 38a0ae2..42ee029, review clean)
+- TDD: 3 commits (RED `1f9c2fa` → GREEN `efc4c60` → REFACTOR `42ee029`)
+- Test: 1/1 pass (supertest, real HTTP)
+- **Minor findings (record for final review):**
+  - `ejs` declared in `package.json` but unused (YAGNI: remove or defer)
+  - `parseInt(PORT, 10) || 3000` falsy-coercion for `PORT=0`
+  - `npm run lint` script references ESLint config that doesn't exist yet
+  - No `control-plane/.gitignore` (node_modules covered at root, but nested is conventional)
+  - No graceful-shutdown hook in `server.js`
+  - RED-phase discipline: failure was "missing test script" not "missing server module"
 
 ### Task 1.2: K8s API client loader
 - status: pending
