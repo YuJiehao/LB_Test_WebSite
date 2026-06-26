@@ -2,10 +2,8 @@
 
 const { selectTargets } = require('./targets');
 const { patchFaultState, getFaultStateConfigMap } = require('../k8s/configmaps');
-
-// Forward-looking audit integration. Uncomment when src/events/audit.js
-// is implemented; the try/catch in applyFault keeps the call safe.
-// const { recordAudit } = require('../events/audit');
+const { recordAudit } = require('../events/audit');
+const { bus } = require('../events/bus');
 
 /**
  * Create a concurrency-limited runner.
@@ -120,19 +118,22 @@ async function applyFault(target, mode, slowDelayMs, ctx) {
 
   await Promise.all(tasks);
 
-  // Forward-looking audit wiring. The import above is commented out until
-  // src/events/audit.js exists; the try/catch makes this safe to uncomment
-  // at any time without breaking the apply path.
+  // Record audit entry and emit on the bus
+  const auditEntry = {
+    timestamp: new Date().toISOString(),
+    actor: ctx.actor || 'system',
+    action: 'fault.apply',
+    target,
+    mode,
+    slowDelayMs,
+    result: { applied, skipped, errors },
+  };
+
   try {
-    // recordAudit('fault.apply', {
-    //   target, mode, slowDelayMs,
-    //   podCount: targetPods.length,
-    //   applied: applied.length,
-    //   skipped: skipped.length,
-    //   errors: errors.length,
-    // });
+    recordAudit(auditEntry);
+    bus.emit('audit_event', auditEntry);
   } catch (_) {
-    // audit module not yet available — non-functional placeholder
+    // audit/bus module error — non-functional, should not break the apply path
   }
 
   return { applied, skipped, errors };
