@@ -3,6 +3,10 @@
 const { selectTargets } = require('./targets');
 const { patchFaultState, getFaultStateConfigMap } = require('../k8s/configmaps');
 
+// Forward-looking audit integration. Uncomment when src/events/audit.js
+// is implemented; the try/catch in applyFault keeps the call safe.
+// const { recordAudit } = require('../events/audit');
+
 /**
  * Create a concurrency-limited runner.
  *
@@ -114,6 +118,21 @@ async function applyFault(target, mode, slowDelayMs, ctx) {
   );
 
   await Promise.all(tasks);
+
+  // Forward-looking audit wiring. The import above is commented out until
+  // src/events/audit.js exists; the try/catch makes this safe to uncomment
+  // at any time without breaking the apply path.
+  try {
+    // recordAudit('fault.apply', {
+    //   target, mode, slowDelayMs,
+    //   podCount: targetPods.length,
+    //   applied: applied.length,
+    //   skipped: skipped.length,
+    //   errors: errors.length,
+    // });
+  } catch (_) {
+    // audit module not yet available — non-functional placeholder
+  }
 
   return { applied, skipped, errors };
 }
