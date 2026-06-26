@@ -15,10 +15,12 @@ spec:
         app: control-plane
     spec:
       serviceAccountName: control-plane-sa
+      imagePullSecrets:
+        - name: harbor-regcred
       containers:
       - name: control-plane
-        image: control-plane:latest
-        imagePullPolicy: IfNotPresent
+        image: 172.20.20.250/webapps/control-plane:v0.1
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
           name: http
