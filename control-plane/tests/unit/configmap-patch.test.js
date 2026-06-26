@@ -169,4 +169,29 @@ describe('patchFaultState()', () => {
     expect(readMock).toHaveBeenCalledTimes(3);
     expect(patchMock).toHaveBeenCalledTimes(3);
   });
+
+  test('rejects with a timeout error if the K8s API call hangs longer than the patch budget', async () => {
+    // Read resolves quickly, then patch hangs forever. Without the
+    // wrapper, this would block until Jest's own test timeout fires
+    // (~5s default) and report a hung test instead of a clean failure.
+    const current = buildCurrentFixture('42');
+    const pending = new Promise(() => {}); // never resolves
+    const mockClient = {
+      configMaps: {
+        readNamespacedConfigMap: jest.fn().mockResolvedValue(current),
+        patchNamespacedConfigMap: jest.fn().mockReturnValue(pending),
+      },
+    };
+
+    const { patchFaultState } = require('../../src/k8s/configmaps');
+
+    // 50ms budget: short enough to fail fast, long enough to absorb
+    // scheduler jitter so the assertion reflects the wrapper, not a race.
+    await expect(
+      patchFaultState(mockClient, NAMESPACE, POD_NAME, NEW_STATE, { timeoutMs: 50 })
+    ).rejects.toThrow(/timeout/i);
+
+    // Exactly one patch attempt happened before the wrapper fired.
+    expect(mockClient.configMaps.patchNamespacedConfigMap).toHaveBeenCalledTimes(1);
+  });
 });

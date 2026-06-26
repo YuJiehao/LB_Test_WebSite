@@ -223,6 +223,30 @@ class PatchConflictError extends Error {
 }
 
 const PATCH_MAX_RETRIES = 3;
+const PATCH_DEFAULT_TIMEOUT_MS = 5000;
+
+/**
+ * Race a promise against a timeout. Resolves/rejects with whichever
+ * settles first; the loser is intentionally not cancelled (the K8s
+ * client lacks a portable abort handle in the version pinned here, and
+ * leaking one in-flight request is acceptable against a stuck API).
+ *
+ * @template T
+ * @param {Promise<T>} p
+ * @param {number} ms
+ * @returns {Promise<T>}
+ */
+function withTimeout(p, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const e = new Error(`patch timeout after ${ms}ms`);
+      e.code = 'PATCH_TIMEOUT';
+      reject(e);
+    }, ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+}
 
 /**
  * Patch the fault-state ConfigMap for a Pod using optimistic locking.
@@ -232,6 +256,10 @@ const PATCH_MAX_RETRIES = 3;
  * up to `PATCH_MAX_RETRIES` times total. If every attempt conflicts,
  * surface a `PatchConflictError` so the caller can decide whether to
  * alert, back off, or give up.
+ *
+ * The whole operation is wrapped in `withTimeout` so a stuck K8s API
+ * (e.g. apiserver deadlock, network black hole) cannot wedge the
+ * control-plane request loop. Default budget is `PATCH_DEFAULT_TIMEOUT_MS`.
  *
  * Uses RFC 7396 JSON merge patch (Content-Type: application/merge-patch+json).
  *
@@ -244,10 +272,17 @@ const PATCH_MAX_RETRIES = 3;
  * @param {string} podName - The Pod name (the ConfigMap is named `fault-state-<podName>`).
  * @param {{mode: string, slowDelayMs: number, updatedAt: string, updatedBy: string}} state
  *   The new fault-state fields to write into `data`.
+ * @param {{timeoutMs?: number}} [opts]
+ *   Optional overrides. `timeoutMs` defaults to `PATCH_DEFAULT_TIMEOUT_MS` (5000ms).
  * @returns {Promise<{name: string, podName: string, mode: string, slowDelayMs: number, resourceVersion: string}>}
  *   The mapped updated ConfigMap.
  */
-async function patchFaultState(client, namespace, podName, state) {
+async function patchFaultState(client, namespace, podName, state, opts) {
+  const timeoutMs = (opts && opts.timeoutMs) || PATCH_DEFAULT_TIMEOUT_MS;
+  return withTimeout(patchFaultStateInner(client, namespace, podName, state), timeoutMs);
+}
+
+async function patchFaultStateInner(client, namespace, podName, state) {
   const name = FAULT_STATE_NAME_PREFIX + podName;
   const body = {
     data: {
