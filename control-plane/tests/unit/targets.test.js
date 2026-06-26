@@ -103,4 +103,20 @@ describe('selectTargets()', () => {
     const result = selectTargets({ type: 'canary', percent: 100 }, pods);
     expect(result).toEqual(pods);
   });
+
+  test('type "canary" with percent 50 over a 100-pod universe selects roughly half', () => {
+    // The defining property of canary is "stable, roughly proportional
+    // subset" — not just "deterministic". A 100-pod universe is large
+    // enough that binomial std dev (~5) makes 50±15 a safe bound for
+    // any reasonable hash distribution.
+    const { selectTargets } = require('../../src/fault/targets');
+    const bigPods = Array.from({ length: 100 }, (_, i) => ({
+      name: `pod-${String(i).padStart(3, '0')}`,
+      ip: `10.0.0.${i}`,
+      nodeName: 'worker-0',
+    }));
+    const result = selectTargets({ type: 'canary', percent: 50 }, bigPods);
+    expect(result.length).toBeGreaterThanOrEqual(35);
+    expect(result.length).toBeLessThanOrEqual(65);
+  });
 });

@@ -66,7 +66,19 @@
   - No test for non-numeric `slowDelayMs` → `parseInt0` fallback
 
 ### Task 1.5: Reconcile ConfigMaps on startup
-- status: **DONE** (commits 44b7e96..58caad7, no review yet)
+- status: **DONE** (commits 44b7e96..664e738, review clean after malformed-pod fix)
+- TDD: 3 commits (RED `44b7e96` → GREEN `cb392e0` → REFACTOR `58caad7`) + review-fix `664e738`
+- Test: 13/13 pass (2 new reconcile + 11 prior)
+- **Important fix applied**: reviewer flagged that `pod.name === undefined` would silently create `fault-state-undefined` ConfigMap. Fix filters out malformed pods and surfaces them in `errors[]`. Same for existing CMs with no `podName`.
+- **Minor findings (record for final review):**
+  - Hard-coded `app=load-balancer-test` selector — defer until a 2nd caller appears
+  - `defaultFaultState` includes `apiVersion`/`kind` (redundant but self-documenting)
+  - Inherited: trailing-newline pattern, no ESLint config, etc.
+
+## Phase 1 — COMPLETE
+- All 5 tasks done; 13/13 tests pass; review clean
+- Files created: package.json, src/server.js, src/config.js, src/k8s/{client,pods,configmaps,labels}.js, tests/unit/{server,k8s-client,k8s-pods,k8s-configmaps,reconcile}.test.js
+- Ready for Phase 2 to consume
 - TDD: 3 commits (RED `44b7e96` → GREEN `cb392e0` → REFACTOR `58caad7`)
 - Test: 13/13 pass (2 new reconcile tests + 11 prior)
 - **Minor findings (record for final review):**
