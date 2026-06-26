@@ -140,10 +140,20 @@
 ## Phase 3 — State Observation
 
 ### Task 3.1: Per-Pod state polling
-- status: pending
+- status: **DONE** (commits 0b07ed9..6f31d3a, review clean after JSDoc fix)
+- TDD: 3 commits (RED `b602eb1` → GREEN `ec58849` → REFACTOR `6aabffb`) + JSDoc fix `6f31d3a`
+- Test: 46/46 pass (3 new poll-pod tests)
+- **Note**: used `global.fetch` mock instead of nock — lighter deps, reviewer approved
+- **Minor findings (record for final review):**
+  - `fetchWithTimeout` GREEN impl had timer-cleanup bug (fixed in REFACTOR)
+  - JSDoc said `opts.timeoutMs` but param is `timeoutMs` (fixed)
 
 ### Task 3.2: Drift detection
-- status: pending
+- status: **DONE** (commits 6f31d3a..eecb1e7)
+- TDD: 3 commits (RED `687005c` → GREEN `f521ef2` → REFACTOR `eecb1e7`)
+- Test: 46/46 pass (5 new drift tests)
+- **Note**: function was pure from GREEN — REFACTOR was a no-op confirmation
+- Added to `src/fault/poll.js` (same module as pollPod — shared domain)
 
 ### Task 3.3: Polling loop with backoff
 - status: pending
