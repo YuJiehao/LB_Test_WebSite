@@ -69,9 +69,9 @@ The user wants a **control plane** that lets a single operator select Pods by va
 ### Trust boundaries
 
 - **Browser → Control Plane**: HTTPS, Basic Auth via Ingress
-- **Control Plane → K8s API**: in-cluster ServiceAccount `lb-control-plane` with `Role` granting `get/list/watch/create/update/patch/delete` on `configmaps` in the project's namespace
-- **Control Plane → Pod**: HTTP to `http://<pod-ip>:3000/api/fault` (in-cluster, no auth — Pod trusts control plane)
-- **Pod → K8s API (read-only)**: `ServiceAccount` on the app Deployment with `Role` granting `get/watch` on `configmaps` filtered by `resourceNames: ["fault-state-<pod-name>"]`
+- **Control Plane → K8s API**: in-cluster ServiceAccount `lb-control-plane` with `Role` granting `get/list/watch/create/update/patch/delete` on `configmaps` **scoped by label selector `role=fault-state`** (no wildcard access to other ConfigMaps in the namespace)
+- **Control Plane → Pod**: HTTP to `http://<pod-ip>:3000/api/fault` (in-cluster, no auth — Pod trusts control plane because Pod IPs are not externally reachable without explicit NetworkPolicy allowing it)
+- **Pod → K8s API (read-only)**: `ServiceAccount` on the app Deployment with `Role` granting `get/watch` on `configmaps` filtered by `resourceNames: ["fault-state-<pod-name>"]` and label selector `role=fault-state`
 
 ## Components
 
@@ -297,6 +297,20 @@ Single-page dashboard at `/` (EJS template). Reuses existing `partials/` (head, 
 
 None at design time. The "3s external-injection drift window" was discussed and **accepted** by the user as a v1 trade-off.
 
+## Repository Layout
+
+This feature touches two artefacts:
+
+1. **New repository / directory**: `lb-fault-control-plane/` — the control plane service
+   - Its own `package.json`, Dockerfile, K8s manifests, source tree
+   - Re-uses the design tokens and partials pattern from this repo via copying or git submodule
+2. **Existing repository** (this repo): LB_Test_WebSite
+   - Adds `@kubernetes/client-node` dependency
+   - Adds startup hook + informer in `app.js`
+   - Adds downward API env var for pod name in `k8s/deployment.yaml`
+   - Adds ServiceAccount + Role + RoleBinding for the app Deployment
+   - Volume / ConfigMap mount is **not** required (app uses K8s API client, not filesystem)
+
 ## Implementation Order (for `writing-plans`)
 
 1. **Backend foundation**: control plane scaffold, K8s API client, ServiceAccount + RBAC
@@ -306,6 +320,6 @@ None at design time. The "3s external-injection drift window" was discussed and 
 5. **SSE + audit**: `/api/events`, in-memory ring buffer, event broadcasting
 6. **Dashboard UI**: EJS page, table component, target/mode form, toast integration
 7. **Ingress + Basic Auth**: Secret, Ingress resource, auth flow
-8. **App-side changes**: ConfigMap read on startup, informer, downward API for pod name
+8. **App-side changes** (this repo): ConfigMap read on startup, informer, downward API for pod name, RBAC
 9. **Deployment manifests**: Dockerfile, Deployment, Service, RBAC, ServiceAccount
 10. **Tests**: unit (Jest) + integration (kind) + chaos scenario
