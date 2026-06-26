@@ -1,0 +1,33 @@
+<%#
+   =========================================================================
+   dashboard.ejs --  Main dashboard page for the control plane
+   Renders via layout.ejs which provides the HTML shell (head/nav/footer).
+   Required (from res.render):
+     title        (string)  page title
+     pods         (Array)   discovered pod list
+     labelSelector (string) current label selector filter
+   =========================================================================
+%><%
+  const _title = typeof title !== 'undefined' ? title : 'LB Fault Control Plane';
+  const _active = typeof active !== 'undefined' ? active : '';
+  const _serverIP = typeof serverIP !== 'undefined' ? serverIP : '';
+  const _pods = typeof pods !== 'undefined' ? pods : [];
+  const _labelSelector = typeof labelSelector !== 'undefined' ? labelSelector : 'app=load-balancer-test';
+
+  // ---- Hero section ----
+  const heroHtml = `
+    <section class="dashboard-hero">
+      <div class="dashboard-hero__inner">
+        <h1>LB Fault Control Plane</h1>
+        <p class="dashboard-hero__sub">Kubernetes fault-injection management dashboard</p>
+      </div>
+    </section>
+  `;
+
+  const bodyHtml = heroHtml;
+%><%- include('layout', {
+  title: _title,
+  active: _active,
+  serverIP: _serverIP,
+  body: bodyHtml,
+}) %>

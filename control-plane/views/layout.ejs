@@ -1,0 +1,25 @@
+<%# =========================================================================
+   layout.ejs --  HTML shell for the control-plane dashboard
+   Uses the symlinked partials/ directory from the root web app.
+   Required:  title  (string)  page title
+   Required:  body   (string)  rendered main content (HTML-safe)
+   Optional:  active (string)  nav active page key
+   Optional:  serverIP (string)  Pod IP for nav display
+   Optional:  extraCss   (string)  page-specific <style> block
+   Optional:  extraScript (string)  page-specific <script> block
+   ========================================================================= %><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<%- include('partials/head', { title }) %>
+<% if (typeof extraCss !== 'undefined' && extraCss) { %><%- extraCss %><% } %>
+</head>
+<body>
+<%- include('partials/nav', {
+  active: typeof active !== 'undefined' ? active : '',
+  serverIP: typeof serverIP !== 'undefined' ? serverIP : '',
+}) %>
+<main class="dashboard-main"><%- body %></main>
+<%- include('partials/footer') %>
+<% if (typeof extraScript !== 'undefined' && extraScript) { %><%- extraScript %><% } %>
+</body>
+</html>
