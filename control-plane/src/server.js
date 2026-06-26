@@ -1,5 +1,6 @@
 const express = require('express');
 const { PORT } = require('./config');
+const { mountRoutes } = require('./api/routes');
 
 const app = express();
 
