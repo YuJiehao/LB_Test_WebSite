@@ -25,7 +25,7 @@ function fetchWithTimeout(url, options, timeoutMs) {
  * Poll a single Pod's fault-state endpoint.
  *
  * Calls `GET http://<pod.ip>:3000/api/fault` with a 5-second timeout
- * (configurable via `opts.timeoutMs`). On success, returns the parsed
+ * (configurable via `timeoutMs`). On success, returns the parsed
  * JSON with `reachable: true`. On any error (timeout, connection refused,
  * non-200 response), returns a safe default with `reachable: false`.
  *
