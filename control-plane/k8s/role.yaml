@@ -1,0 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: control-plane-role
+  labels:
+    app: control-plane
+rules:
+# ConfigMaps: fault-state ConfigMaps are labeled `role=fault-state`.
+# The control plane creates, reads, lists, watches, and patches them.
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - patch
+  - delete
+# Pods: the control plane lists target Pods (by label `app=load-balancer-test`)
+# and watches them for status changes (Phase 3 polling).
+- apiGroups: [""]
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch

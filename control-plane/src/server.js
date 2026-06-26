@@ -2,12 +2,19 @@ const express = require('express');
 const { PORT, NAMESPACE } = require('./config');
 const { mountRoutes } = require('./api/routes');
 const { loadK8sClient } = require('./k8s/client');
+const { basicAuthMiddleware } = require('./auth');
 
 const app = express();
 
+// Health check — intentionally before auth middleware so K8s probes
+// (which hit the Pod directly, not through the Ingress) can pass.
 app.get('/healthz', (_req, res) => {
   res.status(200).type('text/plain').send('OK');
 });
+
+// HTTP Basic Authentication (defense-in-depth).
+// When BASIC_AUTH_USER env is not set, the middleware is a no-op (dev mode).
+app.use(basicAuthMiddleware);
 
 async function start() {
   try {

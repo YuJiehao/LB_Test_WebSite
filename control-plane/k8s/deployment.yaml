@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-deployment
+  labels:
+    app: control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: control-plane
+  template:
+    metadata:
+      labels:
+        app: control-plane
+    spec:
+      serviceAccountName: control-plane-sa
+      containers:
+      - name: control-plane
+        image: control-plane:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: PORT
+          value: "3000"
+        - name: NAMESPACE
+          value: "default"
+        - name: BASIC_AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: lb-control-plane-auth
+              key: username
+              optional: true
+        - name: BASIC_AUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              name: lb-control-plane-auth
+              key: password
+              optional: true
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      securityContext:
+        fsGroup: 1001
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: control-plane-config
+  labels:
+    app: control-plane
+data:
+  app-config.json: |
+    {
+      "port": 3000,
+      "namespace": "default",
+      "logLevel": "info"
+    }

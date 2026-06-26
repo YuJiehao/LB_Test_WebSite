@@ -198,27 +198,42 @@
 ## Phase 5 — Dashboard UI
 
 ### Task 5.1: EJS scaffold with reused partials
-- status: pending
+- status: **DONE** (3 commits, part of Phase 5 batch)
+- Created symlink views/partials → ../../views/partials, layout.ejs, dashboard.ejs, GET / route
 
 ### Task 5.2: Pod table + filter
-- status: pending
+- status: **DONE** (3 commits, part of Phase 5 batch)
+- Server-side table: Pod name, IP, mode, status badge. Label selector filter. pod-row partial
 
 ### Task 5.3: Action form (target + mode)
-- status: pending
+- status: **DONE** (3 commits, part of Phase 5 batch)
+- Target radio + mode select + slow delay. Progressive enhancement. Validation hints
 
 ### Task 5.4: Real-time updates via SSE on the client
-- status: pending
+- status: **DONE** (3 commits + jsdom fix `4080b26`)
+- EventSource on /api/events, mergeStateChange for testability, dual Node/browser support
+
+## Phase 5 — COMPLETE
+- All 4 tasks done; 75/75 tests pass (21 suites)
+- Added jest-environment-jsdom devDep
 
 ## Phase 6 — Access Control + Deployment
 
 ### Task 6.1: Basic Auth Secret
-- status: pending
+- status: **DONE** (3 commits, part of Phase 6 batch)
+- basicAuthMiddleware: conditional (dev-mode bypass when BASIC_AUTH_USER unset), k8s/secret-template.yaml, Makefile
 
 ### Task 6.2: Dockerfile (multi-stage)
-- status: pending
+- status: **DONE** (2 commits, part of Phase 6 batch)
+- node:18-alpine multi-stage, non-root user, HEALTHCHECK, .dockerignore
 
 ### Task 6.3: K8s manifests
-- status: pending
+- status: **DONE** (1 commit, part of Phase 6 batch)
+- control-plane/k8s/: deployment, service, ingress, serviceaccount, role (label-scoped), rolebinding. No PDB.
+
+## Phase 6 — COMPLETE
+- All 3 tasks done; 79/79 tests pass (22 suites)
+- Files created: src/auth.js, Dockerfile, .dockerignore, Makefile, control-plane/k8s/*
 
 ## Phase 7 — App-side Integration
 

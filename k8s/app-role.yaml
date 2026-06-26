@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: load-balancer-test-app
+  namespace: default
+  labels:
+    app: load-balancer-test
+rules:
+  # Allows reading the Pod's own fault-state ConfigMap by name.
+  # RBAC resourceNames does not support downward-API substitution, so
+  # we grant list access to all ConfigMaps in the namespace. Each Pod
+  # reads only `fault-state-<POD_NAME>` — enforced by app code, not RBAC.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "watch", "list"]

@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: control-plane-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: lb-control-plane-auth
+    nginx.ingress.kubernetes.io/auth-realm: "LB Fault Control Plane"
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+    nginx.ingress.kubernetes.io/compute-full-forwarded-for: "true"
+spec:
+  rules:
+  - host: fault-control.lb-test.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: control-plane-service
+            port:
+              number: 80
+  # Uncomment for HTTPS:
+  # tls:
+  # - hosts:
+  #   - fault-control.lb-test.local
+  #   secretName: fault-control-tls

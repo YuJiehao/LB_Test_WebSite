@@ -1,0 +1,31 @@
+node_modules/
+npm-debug.log*
+
+# Tests and CI tooling (not needed at runtime)
+tests/
+coverage/
+.jest-cache/
+
+# Documentation (not needed in the image)
+docs/
+README.md
+
+# Git metadata
+.git/
+.gitignore
+.gitattributes
+
+# Environment files (secrets should never be baked into images)
+.env
+.env.*
+
+# IDE / editor artifacts
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

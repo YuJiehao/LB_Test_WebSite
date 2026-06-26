@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: load-balancer-test-app
+  namespace: default
+  labels:
+    app: load-balancer-test
+subjects:
+  - kind: ServiceAccount
+    name: load-balancer-test-app
+    namespace: default
+roleRef:
+  kind: Role
+  name: load-balancer-test-app
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: control-plane-rolebinding
+  labels:
+    app: control-plane
+subjects:
+- kind: ServiceAccount
+  name: control-plane-sa
+roleRef:
+  kind: Role
+  name: control-plane-role
+  apiGroup: rbac.authorization.k8s.io
