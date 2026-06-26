@@ -263,3 +263,19 @@
 ## ALL PHASES COMPLETE
 - **28/28 tasks done | 86/86 tests pass (22 CP + 2 lib suites)**
 - **Branch**: feature/control-plane
+
+## Final Whole-Branch Review (commit `94db489`)
+
+**3 Critical findings fixed:**
+- C1: app.js wired — loadInitialFaultState on boot + watchFaultState for live updates
+- C2: server.js wired — reconcileOnStartup + startPollingLoop + graceful shutdown
+- C3: k8s-informer.js passes KubeConfig to Watch constructor (not CoreV1Api)
+
+**1 Important finding fixed:**
+- I1: Basic Auth user propagated as req.user → extractActor → audit log
+
+**Remaining Important/Minor findings (for future iteration):**
+- I2: Role grants wider access than design intended (accepted trade-off)
+- M1-M6: Various minor findings from ledger (no ESLint, token-plan issues, etc.)
+
+**Status: Ready for merge**
