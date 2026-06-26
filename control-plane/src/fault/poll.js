@@ -16,18 +16,9 @@
 function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    // Clean up the timer once the Promise settles (or rejects synchronously).
-    // We can't clear it inside the finally of the returned promise because
-    // the finally here runs before the fetch Promise settles. Instead the
-    // caller handles clean-up via the passed signal.
-    //
-    // The abort event itself fires the timer; we keep the cleanup here
-    // for the synchronous error path.
-    clearTimeout(timer);
-  }
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
 }
 
 /**
@@ -50,11 +41,8 @@ function fetchWithTimeout(url, options, timeoutMs) {
  */
 async function pollPod(pod, timeoutMs = 5000) {
   const url = `http://${pod.ip}:3000/api/fault`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetchWithTimeout(url, {}, timeoutMs);
     const data = await res.json();
     return {
       mode: data.mode || 'unknown',
@@ -64,8 +52,6 @@ async function pollPod(pod, timeoutMs = 5000) {
     };
   } catch (_err) {
     return { mode: 'unknown', slowDelayMs: 0, updatedBy: '', reachable: false };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
