@@ -6,6 +6,7 @@ const {
   FAULT_STATE_VALUE,
   FAULT_STATE_NAME_PREFIX,
 } = require('./labels');
+const { listPods } = require('./pods');
 
 function parseInt0(value) {
   const n = parseInt(value, 10);
@@ -79,6 +80,87 @@ async function listFaultStateConfigMaps(client, namespace) {
     .map(toPlainConfigMap);
 }
 
+const POD_APP_LABEL = 'app=load-balancer-test';
+
+/**
+ * Build the default fault-state ConfigMap payload for a Pod.
+ *
+ * Centralised here so reconcile, the apply path, and any future
+ * "reset to defaults" code all stamp out identical ConfigMaps.
+ * The Pod name becomes both the ConfigMap name (with the standard
+ * prefix) and the `pod` label (so `listFaultStateConfigMaps` can
+ * recover it without re-parsing the name).
+ *
+ * @param {string} podName - The Pod this ConfigMap belongs to.
+ * @returns {{apiVersion: string, kind: string, metadata: {name: string, labels: {role: string, pod: string}, namespace: string}, data: {mode: string, slowDelayMs: string, updatedAt: string, updatedBy: string}}}
+ *   The K8s API payload suitable for `createNamespacedConfigMap`.
+ */
+function defaultFaultState(podName) {
+  return {
+    apiVersion: 'v1',
+    kind: 'ConfigMap',
+    metadata: {
+      name: FAULT_STATE_NAME_PREFIX + podName,
+      labels: { [ROLE_KEY]: FAULT_STATE_VALUE, pod: podName },
+      namespace: '', // populated per-call
+    },
+    data: {
+      mode: 'none',
+      slowDelayMs: '60000',
+      updatedAt: '',
+      updatedBy: 'control-plane-bootstrap',
+    },
+  };
+}
+
+/**
+ * Reconcile fault-state ConfigMaps against the current Pod set.
+ *
+ * Called once on control-plane startup. For every Pod matching
+ * `app=load-balancer-test` that does not already have a
+ * `fault-state-<pod>` ConfigMap, this function creates one with the
+ * default state (`mode=none`, `slowDelayMs=60000`).
+ *
+ * Idempotent: a second run against an already-reconciled cluster
+ * performs zero `createNamespacedConfigMap` calls.
+ *
+ * YAGNI: orphan ConfigMaps (a ConfigMap whose Pod no longer exists)
+ * are left alone. A future operator-driven "cleanup" command can
+ * sweep them; we don't risk deleting user data on every restart.
+ *
+ * @param {{pods: {listNamespacedPod: Function}, configMaps: {listNamespacedConfigMap: Function, createNamespacedConfigMap: Function}}} client
+ *   The result of `loadK8sClient()`.
+ * @param {string} namespace - The namespace to reconcile against.
+ * @returns {Promise<{created: string[], skipped: string[], errors: Array<{podName: string, error: string}>}>}
+ *   Per-Pod outcome: created, skipped (already present), or errored.
+ */
+async function reconcileOnStartup(client, namespace) {
+  const pods = await listPods(client, POD_APP_LABEL, namespace);
+  const existing = await listFaultStateConfigMaps(client, namespace);
+  const existingByPod = new Set(existing.map((cm) => cm.podName));
+
+  const created = [];
+  const skipped = [];
+  const errors = [];
+
+  for (const pod of pods) {
+    if (existingByPod.has(pod.name)) {
+      skipped.push(pod.name);
+      continue;
+    }
+    const body = defaultFaultState(pod.name);
+    body.metadata.namespace = namespace;
+    try {
+      await client.configMaps.createNamespacedConfigMap({ namespace, body });
+      created.push(pod.name);
+    } catch (err) {
+      errors.push({ podName: pod.name, error: err.message });
+    }
+  }
+
+  return { created, skipped, errors };
+}
+
 /**
  * Read the fault-state ConfigMap for a single Pod.
  *
@@ -114,6 +196,8 @@ module.exports = {
   listFaultStateConfigMaps,
   getFaultStateConfigMap,
   toPlainConfigMap,
+  reconcileOnStartup,
+  defaultFaultState,
   FAULT_STATE_LABEL,
   FAULT_STATE_NAME_PREFIX,
 };

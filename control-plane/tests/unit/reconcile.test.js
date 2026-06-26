@@ -98,6 +98,8 @@ describe('reconcileOnStartup()', () => {
     ).toHaveBeenCalledWith({
       namespace: NAMESPACE,
       body: {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
         metadata: {
           name: 'fault-state-web-2',
           labels: { role: 'fault-state', pod: 'web-2' },
