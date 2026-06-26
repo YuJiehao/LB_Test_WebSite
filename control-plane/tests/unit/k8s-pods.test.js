@@ -73,10 +73,11 @@ describe('listPods()', () => {
 
     // Assert: the real CoreV1Api was called with the right params...
     expect(mockClient.pods.listNamespacedPod).toHaveBeenCalledTimes(1);
-    expect(mockClient.pods.listNamespacedPod).toHaveBeenCalledWith({
-      namespace: NAMESPACE,
-      labelSelector: LABEL_SELECTOR,
-    });
+    // Adapter uses positional args for @kubernetes/client-node@0.22.3:
+    // (namespace, _, _, _, _, labelSelector, ...).
+    const callArgs = mockClient.pods.listNamespacedPod.mock.calls[0];
+    expect(callArgs[0]).toBe(NAMESPACE);
+    expect(callArgs[5]).toBe(LABEL_SELECTOR);
 
     // ...and the mapping logic produced the expected plain objects.
     expect(result).toEqual([

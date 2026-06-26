@@ -70,10 +70,11 @@ describe('selectTargets()', () => {
     );
 
     expect(mockClient.pods.listNamespacedPod).toHaveBeenCalledTimes(1);
-    expect(mockClient.pods.listNamespacedPod).toHaveBeenCalledWith({
-      namespace: NAMESPACE,
-      labelSelector: 'app=lb-test,tier=web',
-    });
+    // Adapter uses positional args for @kubernetes/client-node@0.22.3:
+    // (namespace, _, _, _, _, labelSelector, ...).
+    const callArgs = mockClient.pods.listNamespacedPod.mock.calls[0];
+    expect(callArgs[0]).toBe(NAMESPACE);
+    expect(callArgs[5]).toBe('app=lb-test,tier=web');
     expect(result).toEqual([
       { name: 'web-0', ip: '10.0.0.1', nodeName: 'node-x' },
       { name: 'web-2', ip: '10.0.0.3', nodeName: 'node-x' },

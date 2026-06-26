@@ -74,6 +74,8 @@ spec:
           readOnlyRootFilesystem: true
       securityContext:
         fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
 ---
 apiVersion: v1
 kind: ConfigMap

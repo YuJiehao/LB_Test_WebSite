@@ -69,14 +69,16 @@ describe('patchFaultState()', () => {
 
     // The patch was sent once, against the current resourceVersion,
     // as a JSON merge patch (RFC 7396) carrying the new data fields.
+    // Adapter uses positional args for @kubernetes/client-node@0.22.3:
+    // patchNamespacedConfigMap(name, namespace, body, ..., { headers }).
     expect(mockClient.configMaps.patchNamespacedConfigMap).toHaveBeenCalledTimes(1);
-    const call = mockClient.configMaps.patchNamespacedConfigMap.mock.calls[0][0];
-    expect(call.namespace).toBe(NAMESPACE);
-    expect(call.name).toBe(CONFIG_MAP_NAME);
-    expect(call.headers).toEqual(
-      expect.objectContaining({ 'Content-Type': 'application/merge-patch+json' })
+    const callArgs = mockClient.configMaps.patchNamespacedConfigMap.mock.calls[0];
+    expect(callArgs[0]).toBe(CONFIG_MAP_NAME);
+    expect(callArgs[1]).toBe(NAMESPACE);
+    expect(callArgs[8].headers).toEqual(
+      { 'Content-Type': 'application/merge-patch+json' }
     );
-    expect(call.body).toEqual({
+    expect(callArgs[2]).toEqual({
       metadata: { resourceVersion: '42' },
       data: {
         mode: NEW_STATE.mode,
@@ -130,7 +132,8 @@ describe('patchFaultState()', () => {
     expect(readMock).toHaveBeenCalledTimes(3);
     expect(patchMock).toHaveBeenCalledTimes(3);
     // Each patch uses the resourceVersion from its preceding read.
-    expect(patchMock.mock.calls[0][0].body).toEqual({
+    // Adapter positional args: (name, namespace, body, ...).
+    expect(patchMock.mock.calls[0][2]).toEqual({
       metadata: { resourceVersion: '42' },
       data: {
         mode: NEW_STATE.mode,
@@ -139,7 +142,7 @@ describe('patchFaultState()', () => {
         updatedBy: NEW_STATE.updatedBy,
       },
     });
-    expect(patchMock.mock.calls[1][0].body).toEqual({
+    expect(patchMock.mock.calls[1][2]).toEqual({
       metadata: { resourceVersion: '43' },
       data: {
         mode: NEW_STATE.mode,
@@ -149,8 +152,7 @@ describe('patchFaultState()', () => {
       },
     });
     // Last patch used the latest fetched resourceVersion (44).
-    const lastPatchCall = patchMock.mock.calls[2][0];
-    expect(lastPatchCall.body).toEqual({
+    expect(patchMock.mock.calls[2][2]).toEqual({
       metadata: { resourceVersion: '44' },
       data: {
         mode: NEW_STATE.mode,

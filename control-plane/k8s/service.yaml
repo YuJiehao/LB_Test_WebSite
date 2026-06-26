@@ -5,11 +5,34 @@ metadata:
   labels:
     app: control-plane
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
   - port: 80
     targetPort: 3000
+    nodePort: 30081
     protocol: TCP
     name: http
   selector:
     app: control-plane
+---
+# Ingress 保留供后续按需启用
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: control-plane-ingress
+#   annotations:
+#     nginx.ingress.kubernetes.io/auth-type: basic
+#     nginx.ingress.kubernetes.io/auth-secret: lb-control-plane-auth
+#     nginx.ingress.kubernetes.io/auth-realm: "LB Fault Control Plane"
+# spec:
+#   rules:
+#   - host: fault-control.lb-test.local
+#     http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: control-plane-service
+#             port:
+#               number: 80

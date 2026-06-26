@@ -89,10 +89,11 @@ describe('listFaultStateConfigMaps()', () => {
 
     // Assert: the real CoreV1Api was called with the right params...
     expect(mockClient.configMaps.listNamespacedConfigMap).toHaveBeenCalledTimes(1);
-    expect(mockClient.configMaps.listNamespacedConfigMap).toHaveBeenCalledWith({
-      namespace: NAMESPACE,
-      labelSelector: 'role=fault-state',
-    });
+    // Adapter uses positional args for @kubernetes/client-node@0.22.3:
+    // (namespace, _, _, _, _, labelSelector, ...).
+    const listCallArgs = mockClient.configMaps.listNamespacedConfigMap.mock.calls[0];
+    expect(listCallArgs[0]).toBe(NAMESPACE);
+    expect(listCallArgs[5]).toBe('role=fault-state');
 
     // ...and only the labelled (fault-state) entries were mapped.
     expect(result).toEqual([
@@ -158,10 +159,11 @@ describe('getFaultStateConfigMap()', () => {
     );
 
     expect(mockClient.configMaps.readNamespacedConfigMap).toHaveBeenCalledTimes(1);
-    expect(mockClient.configMaps.readNamespacedConfigMap).toHaveBeenCalledWith({
-      namespace: NAMESPACE,
-      name: CONFIG_MAP_NAME,
-    });
+    // Adapter uses positional args for @kubernetes/client-node@0.22.3:
+    // readNamespacedConfigMap(name, namespace, ...) — name BEFORE namespace.
+    const readCallArgs = mockClient.configMaps.readNamespacedConfigMap.mock.calls[0];
+    expect(readCallArgs[0]).toBe(CONFIG_MAP_NAME);
+    expect(readCallArgs[1]).toBe(NAMESPACE);
     expect(result).toEqual({
       name: CONFIG_MAP_NAME,
       podName: POD_NAME,
