@@ -1,6 +1,26 @@
 'use strict';
 
 /**
+ * Map a `V1Pod` API object to the plain `{name, ip, nodeName}` record
+ * the rest of the control plane consumes.
+ *
+ * Only the three fields Phase 3 actually needs are extracted — YAGNI
+ * says we don't carry status, containers, owner refs, etc. until a real
+ * consumer asks for them.
+ *
+ * @param {{ metadata?: { name?: string }, spec?: { nodeName?: string }, status?: { podIP?: string } }} apiPod
+ *   A `V1Pod` (or a faithful subset thereof — tests use plain objects).
+ * @returns {{name: string, ip: string, nodeName: string}}
+ */
+function toPlainPod(apiPod) {
+  return {
+    name: apiPod.metadata.name,
+    ip: apiPod.status.podIP,
+    nodeName: apiPod.spec.nodeName,
+  };
+}
+
+/**
  * List all Pods in `namespace` matching `labelSelector`, mapped to a
  * plain shape suitable for UI consumption.
  *
@@ -18,11 +38,7 @@ async function listPods(client, labelSelector, namespace) {
     labelSelector,
   });
   const items = (response && response.items) || [];
-  return items.map((apiPod) => ({
-    name: apiPod.metadata.name,
-    ip: apiPod.status.podIP,
-    nodeName: apiPod.spec.nodeName,
-  }));
+  return items.map(toPlainPod);
 }
 
-module.exports = { listPods };
+module.exports = { listPods, toPlainPod };
