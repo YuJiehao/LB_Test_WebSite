@@ -251,11 +251,12 @@ function withTimeout(p, ms) {
 /**
  * Patch the fault-state ConfigMap for a Pod using optimistic locking.
  *
- * The K8s API rejects a patch referencing a stale `resourceVersion`
- * with HTTP 409. We refetch the current ConfigMap and retry the patch
- * up to `PATCH_MAX_RETRIES` times total. If every attempt conflicts,
- * surface a `PatchConflictError` so the caller can decide whether to
- * alert, back off, or give up.
+ * On each attempt we refetch the current ConfigMap and include its
+ * `metadata.resourceVersion` in the JSON merge-patch body. The K8s API
+ * rejects the patch with HTTP 409 when the resourceVersion is stale,
+ * triggering a retry (up to `PATCH_MAX_RETRIES` times total). If every
+ * attempt conflicts, we surface a `PatchConflictError` so the caller can
+ * decide whether to alert, back off, or give up.
  *
  * The whole operation is wrapped in `withTimeout` so a stuck K8s API
  * (e.g. apiserver deadlock, network black hole) cannot wedge the
@@ -278,25 +279,26 @@ function withTimeout(p, ms) {
  *   The mapped updated ConfigMap.
  */
 async function patchFaultState(client, namespace, podName, state, opts) {
-  const timeoutMs = (opts && opts.timeoutMs) || PATCH_DEFAULT_TIMEOUT_MS;
+  const timeoutMs = (opts && opts.timeoutMs != null) ? opts.timeoutMs : PATCH_DEFAULT_TIMEOUT_MS;
   return withTimeout(patchFaultStateInner(client, namespace, podName, state), timeoutMs);
 }
 
 async function patchFaultStateInner(client, namespace, podName, state) {
   const name = FAULT_STATE_NAME_PREFIX + podName;
-  const body = {
-    data: {
-      mode: state.mode,
-      slowDelayMs: String(state.slowDelayMs),
-      updatedAt: state.updatedAt,
-      updatedBy: state.updatedBy,
-    },
-  };
 
   let lastResourceVersion;
   for (let attempt = 1; attempt <= PATCH_MAX_RETRIES; attempt++) {
     const current = await client.configMaps.readNamespacedConfigMap({ namespace, name });
     lastResourceVersion = current && current.metadata && current.metadata.resourceVersion;
+    const body = {
+      metadata: { resourceVersion: lastResourceVersion },
+      data: {
+        mode: state.mode,
+        slowDelayMs: String(state.slowDelayMs),
+        updatedAt: state.updatedAt,
+        updatedBy: state.updatedBy,
+      },
+    };
     try {
       const updated = await client.configMaps.patchNamespacedConfigMap({
         namespace,

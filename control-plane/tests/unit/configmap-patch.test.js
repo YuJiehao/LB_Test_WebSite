@@ -77,6 +77,7 @@ describe('patchFaultState()', () => {
       expect.objectContaining({ 'Content-Type': 'application/merge-patch+json' })
     );
     expect(call.body).toEqual({
+      metadata: { resourceVersion: '42' },
       data: {
         mode: NEW_STATE.mode,
         slowDelayMs: String(NEW_STATE.slowDelayMs),
@@ -128,9 +129,29 @@ describe('patchFaultState()', () => {
 
     expect(readMock).toHaveBeenCalledTimes(3);
     expect(patchMock).toHaveBeenCalledTimes(3);
+    // Each patch uses the resourceVersion from its preceding read.
+    expect(patchMock.mock.calls[0][0].body).toEqual({
+      metadata: { resourceVersion: '42' },
+      data: {
+        mode: NEW_STATE.mode,
+        slowDelayMs: String(NEW_STATE.slowDelayMs),
+        updatedAt: NEW_STATE.updatedAt,
+        updatedBy: NEW_STATE.updatedBy,
+      },
+    });
+    expect(patchMock.mock.calls[1][0].body).toEqual({
+      metadata: { resourceVersion: '43' },
+      data: {
+        mode: NEW_STATE.mode,
+        slowDelayMs: String(NEW_STATE.slowDelayMs),
+        updatedAt: NEW_STATE.updatedAt,
+        updatedBy: NEW_STATE.updatedBy,
+      },
+    });
     // Last patch used the latest fetched resourceVersion (44).
     const lastPatchCall = patchMock.mock.calls[2][0];
     expect(lastPatchCall.body).toEqual({
+      metadata: { resourceVersion: '44' },
       data: {
         mode: NEW_STATE.mode,
         slowDelayMs: String(NEW_STATE.slowDelayMs),

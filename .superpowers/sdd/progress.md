@@ -90,7 +90,16 @@
 ## Phase 2 — Fault Application Path
 
 ### Task 2.1: Target selection algorithms
-- status: pending
+- status: **DONE** (commits 664e738..20a64b4, review clean after canary-test fix)
+- TDD: 3 commits (RED `4f12fc1` → GREEN `11643b1` → REFACTOR `f4cbdf2`) + canary-fix `20a64b4`
+- Test: 8/8 pass (selectTargets 6 + hashCode 2)
+- **Important fix applied**: added canary-50% test that uses 100-pod universe and asserts 50±15 — proves "roughly proportional subset" property, not just determinism
+- **Minor findings (record for final review):**
+  - TDD slip: `hash.js` was created in GREEN, not REFACTOR (extraction already happened — can't un-extract)
+  - `buildSelectorPredicate` / `filterBySelector` exported but unused (YAGNI: keep internal until 2nd caller)
+  - No test for `ctx.pods` short-circuit path in selector mode
+  - Selector returns `[]` instead of throwing when neither `ctx.pods` nor `ctx.client` supplied (defensible, prefer noise on caller bug)
+  - Inherited: trailing newlines, no ESLint config
 
 ### Task 2.2: ConfigMap patch with optimistic locking
 - status: pending
