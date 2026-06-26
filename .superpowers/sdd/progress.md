@@ -53,10 +53,27 @@
   - Inherited minor from prior tasks (no ESLint config)
 
 ### Task 1.4: List fault-state ConfigMaps
-- status: pending
+- status: **DONE** (commits 529b0ce..e261633 + trailing-newline fix, review clean)
+- TDD: 3 commits (RED `9ea3e7e` → GREEN `9866562` → REFACTOR `e261633`)
+- Test: 11/11 pass (5 new configmaps tests + 6 prior)
+- **Process note**: original subagent was killed by 429 token-plan error mid-task; controller applied fix and wrote the report
+- **Minor findings (record for final review):**
+  - Trailing-newline fix `5621620`-style needed again (`configmaps.js` end-of-file)
+  - `podName` fallback returns raw `meta.name` when prefix doesn't match — could be `undefined` for clarity
+  - `configmaps.js` re-exports `FAULT_STATE_LABEL` / `FAULT_STATE_NAME_PREFIX` from `labels.js` — slight abstraction leak
+  - No test for `err.response?.statusCode === 404` path
+  - No test for `pod` label vs name-strip precedence branches
+  - No test for non-numeric `slowDelayMs` → `parseInt0` fallback
 
 ### Task 1.5: Reconcile ConfigMaps on startup
-- status: pending
+- status: **DONE** (commits 44b7e96..58caad7, no review yet)
+- TDD: 3 commits (RED `44b7e96` → GREEN `cb392e0` → REFACTOR `58caad7`)
+- Test: 13/13 pass (2 new reconcile tests + 11 prior)
+- **Minor findings (record for final review):**
+  - Pod-app selector `app=load-balancer-test` hard-coded in `configmaps.js` — move to `labels.js` if a second caller appears
+  - No re-list between Pods and creates — acceptable for one-shot startup, but a future polling loop would need it
+  - `defaultFaultState` includes `apiVersion`/`kind` (technically redundant since the client fills them in) — kept for self-description
+  - Test fixture for the create call was updated mid-GREEN to add `apiVersion`/`kind`; the diff is mixed into the GREEN commit, not split into a separate "test fix" commit
 
 ## Phase 2 — Fault Application Path
 
