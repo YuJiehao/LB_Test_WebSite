@@ -122,7 +122,20 @@
   - Empty try/catch for audit placeholder (linter noise)
 
 ### Task 2.4: REST routes for apply and reset
-- status: pending
+- status: **DONE** (commits 53a310c..0b07ed9, review clean after mount fix)
+- TDD: 3 commits (RED `fb507ba` → GREEN `a100d58` → REFACTOR `a41b982`) + review-fix `0b07ed9`
+- Test: 38/38 pass (5 new integration tests)
+- **Important fix applied**: reviewer found `mountRoutes` imported but never called — routes 404 in production. Fix: added `start()` with K8s client loading + graceful fallback.
+- **Minor findings (record for final review):**
+  - `express.json()` registered inside route mount (not app-level)
+  - selector/canary validation branches untested
+  - Test assertions don't verify `pods` in ctx
+  - `jest.clearAllMocks()` after mountRoutes (ordering oddity)
+
+## Phase 2 — COMPLETE
+- All 4 tasks done; 38/38 tests pass; reviews clean
+- Files created: src/fault/targets.js, src/fault/apply.js, src/util/hash.js, src/api/routes.js
+- Modified: src/k8s/configmaps.js, src/config.js, src/server.js
 
 ## Phase 3 — State Observation
 
