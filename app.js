@@ -752,9 +752,45 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 // ========================================================================
+// K8s ConfigMap integration — read initial fault state and watch for changes
+// ========================================================================
+async function initK8sIntegration() {
+    const podName = process.env.POD_NAME;
+    if (!podName) {
+        console.log("[k8s] POD_NAME not set — skipping K8s ConfigMap integration");
+        return;
+    }
+    try {
+        const { loadInitialFaultState } = require("./lib/k8s/k8s-startup");
+        const { watchFaultState } = require("./lib/k8s/k8s-informer");
+
+        const initial = await loadInitialFaultState(podName);
+        if (initial) {
+            setFaultMode(initial.mode, "control-plane");
+            faultState.slowDelayMs = initial.slowDelayMs;
+            console.log(`[k8s] loaded initial fault state from ConfigMap: mode=${initial.mode} slowDelayMs=${initial.slowDelayMs}`);
+        } else {
+            console.log("[k8s] no ConfigMap found — using defaults (mode=none)");
+        }
+
+        watchFaultState(podName, null, (data) => {
+            setFaultMode(data.mode, "control-plane");
+            faultState.slowDelayMs = data.slowDelayMs;
+            console.log(`[k8s] informer update: mode=${data.mode} slowDelayMs=${data.slowDelayMs}`);
+        });
+        console.log(`[k8s] informer started for Pod ${podName}`);
+    } catch (err) {
+        console.warn(`[k8s] K8s integration unavailable (${err.message}) — using standalone mode`);
+    }
+}
+
+// ========================================================================
 // Start
 // ========================================================================
-server.listen(PORT, () => {
+initK8sIntegration()
+    .catch((err) => console.warn(`[k8s] init failed: ${err.message}`))
+    .finally(() => {
+        server.listen(PORT, () => {
     console.log(`Load Balancer Test Site running on port ${PORT}`);
     console.log(`Server IP: ${getServerIP()}`);
     console.log(`WebSocket:  ws://<host>:${PORT}/ws`);
@@ -765,3 +801,4 @@ server.listen(PORT, () => {
     );
     console.log(`Fault admin:http://<host>:${PORT}/admin/fault`);
 });
+    });

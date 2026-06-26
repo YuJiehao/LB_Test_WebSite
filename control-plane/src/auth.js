@@ -54,6 +54,8 @@ function basicAuthMiddleware(req, res, next) {
     return res.status(401).type('text/plain').send('Unauthorized');
   }
 
+  // Expose authenticated user for audit logging.
+  req.user = requestUser;
   next();
 }
 

@@ -238,16 +238,28 @@
 ## Phase 7 — App-side Integration
 
 ### Task 7.1: Add @kubernetes/client-node to app
-- status: pending
+- status: **DONE** (commit `6dfb375`)
+- Added @kubernetes/client-node ^0.22.3 + jest to root package.json
 
 ### Task 7.2: ConfigMap read on startup
-- status: pending
+- status: **DONE** (commit `6dfb375`)
+- lib/k8s/k8s-startup.js: loadInitialFaultState(podName, k8sClient), 4 tests pass
 
 ### Task 7.3: Informer watch + onChange
-- status: pending
+- status: **DONE** (commit `6dfb375`)
+- lib/k8s/k8s-informer.js: watchFaultState with reconnect backoff, 3 tests pass
 
 ### Task 7.4: Deployment manifest updates
-- status: pending
+- status: **DONE** (commit `6dfb375`)
+- k8s/deployment.yaml: POD_NAME/NAMESPACE + serviceAccountName
+- k8s/app-serviceaccount.yaml, app-role.yaml, app-rolebinding.yaml
 
 ### Task 7.5: End-to-end verification
-- status: pending
+- status: **DONE** (commit `6dfb375`)
+- docs/superpowers/verification/2026-06-26-control-plane.md
+
+## Phase 7 — COMPLETE
+
+## ALL PHASES COMPLETE
+- **28/28 tasks done | 86/86 tests pass (22 CP + 2 lib suites)**
+- **Branch**: feature/control-plane

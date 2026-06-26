@@ -153,9 +153,10 @@ function mountRoutes(app, opts) {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Extract actor from request (placeholder until Basic Auth in Phase 6)
+  // Extract actor from request — prefers Basic Auth user, falls back to
+  // x-actor header (for programmatic access), then body.actor (form), then 'system'.
   function extractActor(req) {
-    return req.headers['x-actor'] || req.body.actor || 'system';
+    return req.user || req.headers['x-actor'] || req.body.actor || 'system';
   }
 
   // -----------------------------------------------------------------------
