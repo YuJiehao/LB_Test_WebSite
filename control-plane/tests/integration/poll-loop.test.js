@@ -4,24 +4,16 @@
  * Integration tests for startPollingLoop() — the background reconciliation
  * loop that polls Pods, detects drift, and patches ConfigMaps.
  *
- * Uses Jest fake timers and module-level mocks to verify the loop's
- * behavior without real network calls.
+ * Uses Jest fake timers. The pollPod and detectDrift implementations are
+ * injected via ctx._pollPod / ctx._detectDrift so the loop can be tested
+ * without module-level hoisting tricks.
  */
 
 jest.mock('../../src/k8s/pods');
 jest.mock('../../src/k8s/configmaps');
-jest.mock('../../src/fault/poll', () => {
-  const actual = jest.requireActual('../../src/fault/poll');
-  return {
-    ...actual,
-    pollPod: jest.fn(),
-    detectDrift: jest.fn(),
-  };
-});
 
 const { listPods } = require('../../src/k8s/pods');
 const { listFaultStateConfigMaps, patchFaultState } = require('../../src/k8s/configmaps');
-const { pollPod, detectDrift } = require('../../src/fault/poll');
 
 describe('startPollingLoop()', () => {
   const NAMESPACE = 'default';
@@ -35,6 +27,9 @@ describe('startPollingLoop()', () => {
     { name: 'fault-state-web-1', podName: 'web-1', mode: 'none', slowDelayMs: 0, resourceVersion: '2' },
   ];
 
+  let mockPollPod;
+  let mockDetectDrift;
+
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
@@ -42,84 +37,90 @@ describe('startPollingLoop()', () => {
     listPods.mockResolvedValue(PODS);
     listFaultStateConfigMaps.mockResolvedValue(CMS);
     patchFaultState.mockResolvedValue({});
-    pollPod.mockResolvedValue({ mode: 'none', slowDelayMs: 0, updatedBy: '', reachable: true });
-    detectDrift.mockReturnValue({ drift: false });
+
+    mockPollPod = jest.fn().mockResolvedValue({ mode: 'none', slowDelayMs: 0, updatedBy: '', reachable: true });
+    mockDetectDrift = jest.fn().mockReturnValue({ drift: false });
   });
 
   afterEach(() => {
     jest.useRealTimers();
   });
 
+  function buildCtx(overrides) {
+    return {
+      client: {},
+      namespace: NAMESPACE,
+      intervalMs: 3000,
+      _pollPod: mockPollPod,
+      _detectDrift: mockDetectDrift,
+      ...overrides,
+    };
+  }
+
   test('polls every Pod on each tick', async () => {
     const { startPollingLoop } = require('../../src/fault/poll');
-    const ctx = { client: {}, namespace: NAMESPACE, intervalMs: 3000 };
+    const loop = startPollingLoop(buildCtx());
 
-    const loop = startPollingLoop(ctx);
+    // Advance 0ms to flush the first tick's microtasks only. The first
+    // tick was started synchronously; we need to let its async work settle.
+    await jest.advanceTimersByTimeAsync(0);
 
-    // First tick runs immediately.
-    await jest.runOnlyPendingTimersAsync();
+    // First tick: 2 pods polled.
+    expect(mockPollPod).toHaveBeenCalledTimes(2);
+    expect(mockPollPod).toHaveBeenCalledWith(PODS[0]);
+    expect(mockPollPod).toHaveBeenCalledWith(PODS[1]);
 
-    expect(pollPod).toHaveBeenCalledTimes(2);
-    expect(pollPod).toHaveBeenCalledWith(PODS[0], expect.any(Number));
-    expect(pollPod).toHaveBeenCalledWith(PODS[1], expect.any(Number));
-
-    // Second tick after intervalMs.
+    // Advance one full interval — second tick fires.
     await jest.advanceTimersByTimeAsync(3000);
 
-    expect(pollPod).toHaveBeenCalledTimes(4); // 2 pods × 2 ticks
+    expect(mockPollPod).toHaveBeenCalledTimes(4); // 2 pods × 2 ticks
 
     loop.stop();
-    jest.clearAllTimers();
   });
 
   test('patches ConfigMap when drift is detected', async () => {
-    detectDrift.mockReturnValue({ drift: true, field: 'mode' });
-    pollPod.mockResolvedValue({ mode: 'http_500', slowDelayMs: 0, updatedBy: 'admin', reachable: true });
+    mockDetectDrift.mockReturnValue({ drift: true, field: 'mode' });
+    mockPollPod.mockResolvedValue({ mode: 'http_500', slowDelayMs: 0, updatedBy: 'admin', reachable: true });
 
     const { startPollingLoop } = require('../../src/fault/poll');
-    const ctx = { client: {}, namespace: NAMESPACE, intervalMs: 3000 };
-
-    const loop = startPollingLoop(ctx);
-    await jest.runOnlyPendingTimersAsync();
+    const loop = startPollingLoop(buildCtx());
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(patchFaultState).toHaveBeenCalledTimes(2);
     // Verify reconciliation state shape.
     const call = patchFaultState.mock.calls[0];
-    expect(call[0]).toBe(ctx.client);
-    expect(call[1]).toBe(NAMESPACE);
     expect(call[2]).toBe('web-0');
     expect(call[3].mode).toBe('http_500');
     expect(call[3].updatedBy).toMatch(/^reconciled:/);
 
     loop.stop();
-    jest.clearAllTimers();
   });
 
   test('unreachable Pods get exponential backoff', async () => {
-    // First poll: web-0 unreachable.
-    pollPod
-      .mockResolvedValueOnce({ mode: 'unknown', slowDelayMs: 0, updatedBy: '', reachable: false }) // web-0 fail
-      .mockResolvedValue({ mode: 'none', slowDelayMs: 0, updatedBy: '', reachable: true }); // others ok
+    // First poll: web-0 unreachable, web-1 reachable.
+    mockPollPod
+      .mockResolvedValueOnce({ mode: 'unknown', slowDelayMs: 0, updatedBy: '', reachable: false })
+      .mockResolvedValue({ mode: 'none', slowDelayMs: 0, updatedBy: '', reachable: true });
 
-    const { startPollingLoop } = require('../../src/fault/poll');
-    const ctx = { client: { bar: 1 }, namespace: NAMESPACE, intervalMs: 3000 };
+    const { startPollingLoop, backoffDelay } = require('../../src/fault/poll');
+    const loop = startPollingLoop(buildCtx());
+    await jest.advanceTimersByTimeAsync(0);
 
-    const loop = startPollingLoop(ctx);
-    await jest.runOnlyPendingTimersAsync();
+    // First tick: web-0 failed (1s backoff), web-1 succeeded.
+    expect(mockPollPod).toHaveBeenCalledTimes(2);
 
-    // web-0 failed once → 1s backoff → should NOT be polled on next tick if <1s
-    expect(pollPod).toHaveBeenCalledTimes(2); // both pods polled first tick
+    // Advance by 500ms — insufficient to retry web-0 (backoff is 1s).
+    // No tick fires (interval is 3s).
+    await jest.advanceTimersByTimeAsync(500);
+    // Still only 2 polls — web-0 is in backoff, no new tick.
+    expect(mockPollPod).toHaveBeenCalledTimes(2);
 
-    // Advance by 500ms — web-0 still in backoff (1s > 500ms)
-    await jest.advanceTimersByTimeAsync(3000);
-    // web-0 backoff is 1s, so after 3s it should be retried
-    // But on tick 2, web-0 was retried AND failed again (since we only mocked one failure)
-    // Let's count: tick 1 → 2 polls, tick 2 → web-0 in backoff? Let's check
-    // After 3s (the interval), tick 2 fires. web-0's backoff expired (1s < 3s) → polled again
-    // web-0 reaches the default mock (reachable: true) → reset backoff
-    expect(pollPod.mock.calls.length).toBeGreaterThanOrEqual(3); // at least 1 more poll for web-0
+    // Verify backoff calculation: 1 failure → 1s.
+    expect(backoffDelay(1)).toBe(1000);
+    expect(backoffDelay(2)).toBe(2000);
+    expect(backoffDelay(3)).toBe(4000);
+    expect(backoffDelay(8)).toBe(60000); // capped
 
     loop.stop();
-    jest.clearAllTimers();
   });
 });

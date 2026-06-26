@@ -91,4 +91,116 @@ function detectDrift(desired, actual) {
   return { drift: false };
 }
 
-module.exports = { pollPod, fetchWithTimeout, detectDrift };
+const { listPods } = require('../k8s/pods');
+const { listFaultStateConfigMaps, patchFaultState } = require('../k8s/configmaps');
+
+const POD_APP_LABEL = 'app=load-balancer-test';
+const DEFAULT_INTERVAL_MS = 3000;
+const MAX_BACKOFF_MS = 60000;
+
+/**
+ * Compute exponential backoff delay from consecutive failures.
+ *
+ * Sequence: 1→1s, 2→2s, 3→4s, 4→8s, 5→16s, 6→32s, 7+→60s.
+ *
+ * @param {number} failures - Consecutive failure count (>= 1).
+ * @returns {number} Delay in milliseconds (capped at `MAX_BACKOFF_MS`).
+ */
+function backoffDelay(failures) {
+  return Math.min(1000 * Math.pow(2, failures - 1), MAX_BACKOFF_MS);
+}
+
+/**
+ * Start the background state-observation loop.
+ *
+ * Every `ctx.intervalMs` (default 3s) the loop:
+ *  1. Fetches the current Pod list and ConfigMap set.
+ *  2. Polls each Pod's `/api/fault` endpoint (skipping Pods still in
+ *     exponential backoff from a prior unreachable poll).
+ *  3. Compares actual (Pod memory) state against desired (ConfigMap) state
+ *     via {@link detectDrift}.
+ *  4. When drift is detected, patches the ConfigMap to match the actual
+ *     state with `updatedBy: "reconciled:<field>"` so future comparisons
+ *     suppress the alert.
+ *  5. Unreachable Pods are tracked with exponential backoff (capped at 60s).
+ *     Once a Pod responds successfully its backoff is reset.
+ *
+ * The first tick runs immediately (no initial delay). The returned `stop`
+ * handle cancels the next scheduled tick and prevents any in-flight tick
+ * from scheduling a new one.
+ *
+ * @param {{client: object, namespace: string, intervalMs?: number}} ctx
+ *   Runtime context. `client` (K8s API client) and `namespace` are required.
+ *   `intervalMs` defaults to `DEFAULT_INTERVAL_MS` (3000ms).
+ * @returns {{stop: () => void}} Handle to shut down the loop.
+ */
+function startPollingLoop(ctx) {
+  const intervalMs = ctx.intervalMs || DEFAULT_INTERVAL_MS;
+  // Allow tests to inject mock implementations via ctx._pollPod / ctx._detectDrift.
+  const _pollPod = ctx._pollPod || pollPod;
+  const _detectDrift = ctx._detectDrift || detectDrift;
+  const backoff = new Map(); // podName → {failures, nextRetryAt}
+  let timer = null;
+  let stopped = false;
+
+  async function tick() {
+    if (stopped) return;
+
+    try {
+      const pods = await listPods(ctx.client, POD_APP_LABEL, ctx.namespace);
+      const configMaps = await listFaultStateConfigMaps(ctx.client, ctx.namespace);
+      const cmByPod = new Map(configMaps.map((cm) => [cm.podName, cm]));
+      const now = Date.now();
+
+      for (const pod of pods) {
+        if (!pod || typeof pod.name !== 'string') continue;
+
+        // Honour backoff window.
+        const bs = backoff.get(pod.name);
+        if (bs && bs.nextRetryAt > now) continue;
+
+        const actual = await _pollPod(pod);
+        if (!actual.reachable) {
+          const failures = (bs ? bs.failures : 0) + 1;
+          backoff.set(pod.name, { failures, nextRetryAt: now + backoffDelay(failures) });
+          continue;
+        }
+
+        // Pod responded — reset backoff.
+        if (bs) backoff.delete(pod.name);
+
+        const desired = cmByPod.get(pod.name);
+        if (!desired) continue; // No ConfigMap for this Pod — skip.
+
+        const drift = _detectDrift(desired, actual);
+        if (drift.drift) {
+          await patchFaultState(ctx.client, ctx.namespace, pod.name, {
+            mode: actual.mode,
+            slowDelayMs: actual.slowDelayMs,
+            updatedAt: new Date().toISOString(),
+            updatedBy: `reconciled:${drift.field}`,
+          });
+        }
+      }
+    } catch (_err) {
+      // Swallow errors in a single tick — the loop must keep running.
+      // A future observability hook (event bus) would surface this.
+    }
+
+    if (!stopped) {
+      timer = setTimeout(tick, intervalMs);
+    }
+  }
+
+  // First tick fires immediately.
+  tick();
+
+  return {
+    stop() {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    },
+  };
+}
+
+module.exports = { pollPod, fetchWithTimeout, detectDrift, startPollingLoop, backoffDelay };
