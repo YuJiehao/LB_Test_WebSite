@@ -7,7 +7,7 @@
 
 ## Overview
 
-This plan implements the approved control plane design in 7 phases. Each phase delivers a runnable milestone; each task follows strict TDD (RED → GREEN → REFACTOR). Repository layout follows the design's "Repository Layout" section: a **new repo** `lb-fault-control-plane/` for the control plane service, plus targeted **edits to the existing LB_Test_WebSite repo** for the app-side informer integration.
+This plan implements the approved control plane design in 7 phases. Each phase delivers a runnable milestone; each task follows strict TDD (RED → GREEN → REFACTOR). Repository layout: control plane service lives in `control-plane/` subdirectory of this repo, plus targeted **edits to the existing app** (in `lib/k8s/` and `app.js`) for the app-side informer integration.
 
 ## Tech Stack
 
@@ -23,47 +23,66 @@ This plan implements the approved control plane design in 7 phases. Each phase d
 
 ## Repository Layout
 
+The control plane service lives in a **subdirectory** `control-plane/` of the LB_Test_WebSite repository. The existing app's `app.js` stays at the repo root; new app-side integration files go in `lib/k8s/`. K8s manifests for both the app and the control plane are in the existing `k8s/` directory.
+
 ```
-# New repo: lb-fault-control-plane/
-lb-fault-control-plane/
-├── package.json
-├── Dockerfile
-├── .dockerignore
-├── .eslintrc.json
-├── jest.config.js
-├── src/
-│   ├── server.js              # Express bootstrap
-│   ├── config.js              # Env vars + constants
-│   ├── k8s/
-│   │   ├── client.js          # K8s API client loader
-│   │   ├── pods.js            # Pod listing
-│   │   ├── configmaps.js      # ConfigMap CRUD + reconcile
-│   │   └── rbac.js            # ServiceAccount wiring (manifests only)
-│   ├── fault/
-│   │   ├── targets.js         # Target selection (single/all/selector/canary)
-│   │   ├── apply.js           # ConfigMap patch orchestrator
-│   │   └── poll.js            # Per-Pod state polling + drift detection
-│   ├── events/
-│   │   ├── bus.js             # Internal event emitter
-│   │   ├── audit.js           # In-memory ring buffer
-│   │   └── sse.js             # SSE endpoint
-│   ├── api/
-│   │   ├── routes.js          # REST endpoints
-│   │   └── dashboard.js       # EJS page
-│   └── views/
-│       ├── layout.ejs
-│       ├── dashboard.ejs
-│       └── partials/          # copied/symlinked from LB_Test_WebSite/public/css + views/partials
-├── k8s/
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   ├── ingress.yaml
-│   ├── serviceaccount.yaml
-│   ├── role.yaml
-│   └── rolebinding.yaml
-└── tests/
-    ├── unit/
-    └── integration/
+LB_Test_WebSite/
+├── app.js                          # existing app (untouched except for k8s hooks in Phase 7)
+├── package.json                    # existing app deps
+├── views/
+│   └── partials/                   # shared EJS partials (icon, nav, footer, head)
+├── lib/
+│   └── k8s/                        # NEW: app-side K8s integration
+│       ├── k8s-startup.js
+│       ├── k8s-informer.js
+│       └── __tests__/
+├── control-plane/                  # NEW: control plane service
+│   ├── package.json
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── .eslintrc.json
+│   ├── jest.config.js
+│   ├── src/
+│   │   ├── server.js
+│   │   ├── config.js
+│   │   ├── k8s/
+│   │   │   ├── client.js
+│   │   │   ├── pods.js
+│   │   │   ├── configmaps.js
+│   │   │   └── labels.js
+│   │   ├── fault/
+│   │   │   ├── targets.js
+│   │   │   ├── apply.js
+│   │   │   └── poll.js
+│   │   ├── events/
+│   │   │   ├── bus.js
+│   │   │   ├── audit.js
+│   │   │   └── sse.js
+│   │   └── api/
+│   │       ├── routes.js
+│   │       └── dashboard.js
+│   ├── views/
+│   │   ├── layout.ejs
+│   │   ├── dashboard.ejs
+│   │   └── partials/               # SYMLINK → ../../views/partials
+│   ├── public/
+│   │   └── js/
+│   │       └── dashboard.js        # client-side SSE
+│   └── tests/
+│       ├── unit/
+│       └── integration/
+└── k8s/                            # existing K8s manifests (extended in Phase 6/7)
+    ├── deployment.yaml             # app (extended in Phase 7)
+    ├── service.yaml                # app
+    ├── control-plane-deployment.yaml  # NEW: control plane
+    ├── control-plane-service.yaml
+    ├── control-plane-ingress.yaml
+    ├── control-plane-serviceaccount.yaml
+    ├── control-plane-role.yaml     # scoped to role=fault-state label
+    ├── control-plane-rolebinding.yaml
+    ├── app-serviceaccount.yaml     # NEW: app SA for informer (Phase 7)
+    ├── app-role.yaml               # scoped to role=fault-state label (no resourceNames)
+    └── app-rolebinding.yaml
 ```
 
 ## Phase 1 — Backend Foundation
@@ -311,7 +330,7 @@ lb-fault-control-plane/
 - `GET /` renders an EJS page with: filter bar, action panel, Pod table, audit log
 - Table updates in real time when SSE events fire
 - Injecting a fault via the form posts to `POST /api/fault/apply` and shows a toast on success/failure
-- Reuses design tokens, partials, toast system from LB_Test_WebSite via copy or symlink
+- Reuses design tokens, partials, toast system from the existing app via symlink (`control-plane/views/partials` → `../../views/partials`)
 
 ### Task 5.1: EJS scaffold with reused partials
 
@@ -320,7 +339,7 @@ lb-fault-control-plane/
 - Test the rendered HTML includes the partials: nav, footer
 - Confirm failure
 
-**GREEN**: Create `src/views/layout.ejs` + `src/views/dashboard.ejs`. Symlink (or copy on first run) `partials/` from `../LB_Test_WebSite/views/partials/`. Confirm pass. Commit.
+**GREEN**: Create `control-plane/views/layout.ejs` + `control-plane/views/dashboard.ejs`. Create symlink `control-plane/views/partials` → `../../views/partials`. Confirm pass. Commit.
 
 **REFACTOR**: Document the symlink strategy in a README. Commit.
 
@@ -398,7 +417,7 @@ lb-fault-control-plane/
 
 **GREEN**: Write `k8s/deployment.yaml`, `service.yaml`, `ingress.yaml`, `serviceaccount.yaml`, `role.yaml`, `rolebinding.yaml` per the design's "Components" + "Trust boundaries" sections. Use `role=fault-state` label selector in Role. Commit.
 
-**REFACTOR**: Add `podDisruptionBudget` with `minAvailable: 1`. Commit.
+**REFACTOR**: Skip PDB — single-replica Deployment means a PDB with `minAvailable: 1` is a no-op. Commit.
 
 ---
 
@@ -422,23 +441,23 @@ lb-fault-control-plane/
 
 ### Task 7.2: ConfigMap read on startup
 
-**RED**: Write `tests/unit/app-startup.test.js` in the LB_Test_WebSite repo (Jest configured for the first time — add `jest.config.js`):
+**RED**: Write `lib/k8s/__tests__/k8s-startup.test.js` (Jest configured for the first time at repo root — add `jest.config.js`):
 - Test `loadInitialFaultState(podName, k8sClient)` returns `{mode, slowDelayMs}` from the ConfigMap
 - Test missing ConfigMap returns `null` (app falls back to `none`)
 - Mock `@kubernetes/client-node`. Confirm failure
 
-**GREEN**: Implement `src/k8s-startup.js` in LB_Test_WebSite. Hook into `app.js` startup to call `loadInitialFaultState` before `server.listen`. Confirm pass. Commit.
+**GREEN**: Implement `lib/k8s/k8s-startup.js`. Hook into `app.js` startup to call `loadInitialFaultState` before `server.listen`. Confirm pass. Commit.
 
 **REFACTOR**: Make the ConfigMap name derived from downward API env var `POD_NAME`. Commit.
 
 ### Task 7.3: Informer watch + onChange
 
-**RED**: Write `tests/unit/app-informer.test.js`:
+**RED**: Write `lib/k8s/__tests__/k8s-informer.test.js`:
 - Test when the ConfigMap changes, the app's `faultState.mode` is updated
 - Test the app calls `setFaultMode(newMode, "control-plane")` with the right `updatedBy`
 - Mock the watch API to emit a "MODIFIED" event. Confirm failure
 
-**GREEN**: Implement `src/k8s-informer.js` in LB_Test_WebSite. Use `Watch` from `@kubernetes/client-node`. Wire to existing `setFaultMode`. Confirm pass. Commit.
+**GREEN**: Implement `lib/k8s/k8s-informer.js`. Use `Watch` from `@kubernetes/client-node`. Wire to existing `setFaultMode`. Confirm pass. Commit.
 
 **REFACTOR**: Add reconnect-with-backoff on watch failure. Commit.
 
@@ -449,7 +468,7 @@ lb-fault-control-plane/
 **GREEN**: Update `LB_Test_WebSite/k8s/deployment.yaml`:
 - Add downward API env var: `POD_NAME` from `metadata.name`
 - Add `serviceAccountName: load-balancer-test-app`
-- Create new files: `k8s/serviceaccount.yaml`, `k8s/role.yaml`, `k8s/rolebinding.yaml` scoped to `role=fault-state` label and `resourceNames: ["fault-state-$(POD_NAME)"]`
+- Create new files: `k8s/app-serviceaccount.yaml`, `k8s/app-role.yaml`, `k8s/app-rolebinding.yaml` scoped to `role=fault-state` label (NO `resourceNames` field — K8s Role `resourceNames` does not substitute downward-API values, and the label selector is sufficient)
 - Commit.
 
 **REFACTOR**: Document in CLAUDE.md. Commit.
@@ -467,7 +486,7 @@ lb-fault-control-plane/
 6. Click "Inject reset" on a single Pod → verify within 5s the row shows `reset` + F5 monitor shows member DOWN
 7. Click "Reset All" → verify all rows return to `none` within 5s
 8. Run `curl -X POST http://<node-ip>:30080/api/fault -d '{"mode":"http_500"}'` directly to a Pod → verify within 5s the control plane shows the drift + reconciles
-9. `kubectl delete pod -l app=lb-fault-control-plane` → verify injected faults remain applied (ConfigMap is source of truth)
+9. `kubectl delete pod -l app=control-plane` → verify injected faults remain applied (ConfigMap is source of truth)
 10. Capture results in a `docs/superpowers/verification/2026-06-26-control-plane.md`
 
 ---
@@ -497,23 +516,26 @@ These are explicitly NOT in this plan, cross-referenced from the design's Non-Go
 
 | File | Phase | Notes |
 |------|-------|-------|
-| `lb-fault-control-plane/src/server.js` | 1.1 | Express bootstrap |
-| `lb-fault-control-plane/src/k8s/client.js` | 1.2 | K8s client loader |
-| `lb-fault-control-plane/src/k8s/pods.js` | 1.3 | Pod listing |
-| `lb-fault-control-plane/src/k8s/configmaps.js` | 1.4, 1.5, 2.2 | ConfigMap CRUD + reconcile + patch |
-| `lb-fault-control-plane/src/fault/targets.js` | 2.1 | 4-way target selection |
-| `lb-fault-control-plane/src/fault/apply.js` | 2.3, 4.4 | Orchestrator + audit emit |
-| `lb-fault-control-plane/src/fault/poll.js` | 3.1, 3.3 | Polling + backoff |
-| `lb-fault-control-plane/src/events/bus.js` | 4.1 | Internal event bus |
-| `lb-fault-control-plane/src/events/audit.js` | 4.2 | Ring buffer |
-| `lb-fault-control-plane/src/events/sse.js` | 4.3 | SSE endpoint |
-| `lb-fault-control-plane/src/api/routes.js` | 2.4, 5.x | REST + dashboard route |
-| `lb-fault-control-plane/k8s/role.yaml` | 6.3 | **Scoped to `role=fault-state` label** |
-| `LB_Test_WebSite/src/k8s-startup.js` | 7.2 | New file in existing repo |
-| `LB_Test_WebSite/src/k8s-informer.js` | 7.3 | New file in existing repo |
-| `LB_Test_WebSite/app.js` | 7.2, 7.3 | Wire startup + informer hooks |
-| `LB_Test_WebSite/k8s/deployment.yaml` | 7.4 | Downward API + serviceAccountName |
-| `LB_Test_WebSite/k8s/role.yaml` | 7.4 | New, scoped to own ConfigMap name |
+| `control-plane/src/server.js` | 1.1 | Express bootstrap |
+| `control-plane/src/k8s/client.js` | 1.2 | K8s client loader |
+| `control-plane/src/k8s/pods.js` | 1.3 | Pod listing |
+| `control-plane/src/k8s/configmaps.js` | 1.4, 1.5, 2.2 | ConfigMap CRUD + reconcile + patch |
+| `control-plane/src/k8s/labels.js` | 1.4 | Shared label constants |
+| `control-plane/src/fault/targets.js` | 2.1 | 4-way target selection |
+| `control-plane/src/fault/apply.js` | 2.3, 4.4 | Orchestrator + audit emit |
+| `control-plane/src/fault/poll.js` | 3.1, 3.3 | Polling + backoff |
+| `control-plane/src/events/bus.js` | 4.1 | Internal event bus |
+| `control-plane/src/events/audit.js` | 4.2 | Ring buffer |
+| `control-plane/src/events/sse.js` | 4.3 | SSE endpoint |
+| `control-plane/src/api/routes.js` | 2.4, 5.x | REST + dashboard route |
+| `control-plane/views/dashboard.ejs` | 5.1-5.4 | EJS dashboard |
+| `control-plane/public/js/dashboard.js` | 5.4 | Client SSE |
+| `k8s/control-plane-role.yaml` | 6.3 | **Scoped to `role=fault-state` label** |
+| `lib/k8s/k8s-startup.js` | 7.2 | New file in `lib/k8s/` |
+| `lib/k8s/k8s-informer.js` | 7.3 | New file in `lib/k8s/` |
+| `app.js` | 7.2, 7.3 | Wire startup + informer hooks |
+| `k8s/deployment.yaml` | 7.4 | Downward API + serviceAccountName |
+| `k8s/app-role.yaml` | 7.4 | New, scoped by `role=fault-state` label |
 
 ## Estimated Effort
 
