@@ -90,6 +90,11 @@ function mountRoutes(app, opts) {
 
   app.use(express.json());
 
+  // Extract actor from request (placeholder until Basic Auth in Phase 6)
+  function extractActor(req) {
+    return req.headers['x-actor'] || req.body.actor || 'system';
+  }
+
   // -----------------------------------------------------------------------
   //  POST /api/fault/apply
   // -----------------------------------------------------------------------
@@ -107,6 +112,7 @@ function mountRoutes(app, opts) {
         client,
         namespace,
         pods,
+        actor: extractActor(req),
       });
       return res.json(result);
     } catch (err) {
@@ -124,6 +130,7 @@ function mountRoutes(app, opts) {
         client,
         namespace,
         pods,
+        actor: extractActor(req),
       });
       return res.json(result);
     } catch (err) {
