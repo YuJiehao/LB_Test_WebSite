@@ -34,10 +34,23 @@
   - RED-phase discipline: failure was "missing test script" not "missing server module"
 
 ### Task 1.2: K8s API client loader
-- status: pending
+- status: **DONE** (commits 42ee029..5621620, review clean after trailing-newline fix)
+- TDD: 3 commits (RED `41b245a` → GREEN `1cf78f8` → REFACTOR `5086e3b`) + fix `5621620`
+- Test: 4/4 pass (3 new k8s-client tests + 1 server test, all green)
+- **Library API deviation**: brief said `loadInCluster`; used `KubeConfig.prototype.loadFromCluster` (0.22.x does not export `loadInCluster`). Approved by reviewer as justified adaptation. JSDoc explains.
+- **Minor findings (record for final review):**
+  - Wrapped error discards original stack (use `cause: err` Node 16.9+)
+  - `pods`/`configMaps` share same `CoreV1Api` instance — mutations visible across both
+  - Inherited ESLint config missing (already in Task 1.1 findings)
 
 ### Task 1.3: List Pods by label selector
-- status: pending
+- status: **DONE** (commits 5621620..529b0ce, review clean)
+- TDD: 3 commits (RED `7d94fff` → GREEN `6f4df76` → REFACTOR `529b0ce`)
+- Test: 6/6 pass (2 new pods tests + 4 prior)
+- **Minor findings (record for final review):**
+  - Signature drift: brief said 2-arg `listPods(client, selector)`, impl is 3-arg `(client, selector, namespace)` — defensible, but worth aligning brief for future tasks
+  - No test for missing `podIP` (Pending state) — `toPlainPod` would return `ip: undefined`
+  - Inherited minor from prior tasks (no ESLint config)
 
 ### Task 1.4: List fault-state ConfigMaps
 - status: pending
