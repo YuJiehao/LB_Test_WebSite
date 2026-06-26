@@ -138,13 +138,25 @@ function defaultFaultState(podName, namespace) {
 async function reconcileOnStartup(client, namespace) {
   const pods = await listPods(client, POD_APP_LABEL, namespace);
   const existing = await listFaultStateConfigMaps(client, namespace);
-  const existingByPod = new Set(existing.map((cm) => cm.podName));
+  // Drop existing CMs whose podName didn't resolve — they would otherwise
+  // collide with a malformed pod whose name is also undefined, silently
+  // marking the malformed pod as "already reconciled".
+  const existingByPod = new Set(
+    existing.map((cm) => cm.podName).filter((name) => typeof name === 'string' && name.length > 0)
+  );
 
   const created = [];
   const skipped = [];
   const errors = [];
 
   for (const pod of pods) {
+    if (!pod || typeof pod.name !== 'string' || pod.name.length === 0) {
+      // Surface malformed pods in errors rather than silently producing
+      // a `fault-state-undefined` ConfigMap that subsequent runs can't
+      // disambiguate from a real one.
+      errors.push({ podName: pod && pod.name, error: 'pod has no name' });
+      continue;
+    }
     if (existingByPod.has(pod.name)) {
       skipped.push(pod.name);
       continue;
