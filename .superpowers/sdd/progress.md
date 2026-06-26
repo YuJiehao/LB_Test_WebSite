@@ -156,21 +156,44 @@
 - Added to `src/fault/poll.js` (same module as pollPod — shared domain)
 
 ### Task 3.3: Polling loop with backoff
-- status: pending
+- status: **DONE** (commits eecb1e7..b73cbdf)
+- TDD: 3 commits (RED `16a3f75` → GREEN `49c62d6` → REFACTOR `b73cbdf`)
+- Test: 49/49 pass (3 new integration tests)
+- **Note**: Used DI pattern (`ctx._pollPod`/`ctx._detectDrift`) to make same-module mocking testable
+- **Minor findings (record for final review):**
+  - Tick error silently swallowed (event bus emit pending)
+
+## Phase 3 — COMPLETE
+- All 3 tasks done; 49/49 tests pass
+- Files created: src/fault/poll.js (pollPod + detectDrift + startPollingLoop + BackoffTracker)
+- Files modified: none (poll.js is new)
 
 ## Phase 4 — Real-time + Audit
 
 ### Task 4.1: Internal event bus
-- status: pending
+- status: **DONE** (3 commits, part of Phase 4 batch)
+- TDD: RED → GREEN (EventEmitter wrapper) → REFACTOR (typedBus with schemas)
+- Test: 61/61 pass
 
 ### Task 4.2: Audit ring buffer
-- status: pending
+- status: **DONE** (3 commits, part of Phase 4 batch)
+- TDD: RED → GREEN (200-entry FIFO) → REFACTOR (config.AUDIT_BUFFER_SIZE env var)
+- Test: 61/61 pass
 
 ### Task 4.3: SSE endpoint
-- status: pending
+- status: **DONE** (3 commits, part of Phase 4 batch)
+- TDD: RED → GREEN (SSE handler with 3 event types) → REFACTOR (dead subscriber cleanup)
+- Test: 61/61 pass
 
 ### Task 4.4: Wire audit + bus into apply path
-- status: pending
+- status: **DONE** (3 commits, part of Phase 4 batch)
+- TDD: RED → GREEN (recordAudit + bus.emit in applyFault) → REFACTOR (actor extraction from request)
+- Test: 61/61 pass
+
+## Phase 4 — COMPLETE
+- All 4 tasks done; 61/61 tests pass
+- Files created: src/events/bus.js, src/events/audit.js, src/events/sse.js
+- Modified: src/fault/apply.js (wired audit + bus), src/api/routes.js (actor extraction), src/config.js (+AUDIT_BUFFER_SIZE)
 
 ## Phase 5 — Dashboard UI
 
