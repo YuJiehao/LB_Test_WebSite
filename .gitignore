@@ -57,3 +57,7 @@ kubeconfig
 # ===== Agent 指令文件（仅本地使用，不上传 GitHub）=====
 AGENTS.md
 CLAUDE.md
+
+# ===== Superpowers 开发工件（仅本地使用）=====
+.superpowers/
+docs/superpowers/
