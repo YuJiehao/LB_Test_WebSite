@@ -1,4 +1,5 @@
 const express = require('express');
+const { PORT } = require('./config');
 
 const app = express();
 
@@ -7,9 +8,8 @@ app.get('/healthz', (_req, res) => {
 });
 
 if (require.main === module) {
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => {
-    console.log(`control-plane listening on port ${port}`);
+  app.listen(PORT, () => {
+    console.log(`control-plane listening on port ${PORT}`);
   });
 }
 
