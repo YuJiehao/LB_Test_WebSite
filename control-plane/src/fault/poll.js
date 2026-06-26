@@ -111,6 +111,37 @@ function backoffDelay(failures) {
 }
 
 /**
+ * Track per-Pod exponential backoff state.
+ *
+ * Encapsulates a `Map<podName, {failures, nextRetryAt}>` and exposes
+ * simple query/record/reset methods so the polling loop stays readable.
+ *
+ * @returns {{
+ *   shouldRetry: (podName: string, now: number) => boolean,
+ *   recordFailure: (podName: string, now: number) => void,
+ *   reset: (podName: string) => void,
+ * }}
+ */
+function createBackoffTracker() {
+  const state = new Map(); // podName → {failures, nextRetryAt}
+
+  return {
+    shouldRetry(podName, now) {
+      const bs = state.get(podName);
+      return !bs || bs.nextRetryAt <= now;
+    },
+    recordFailure(podName, now) {
+      const bs = state.get(podName);
+      const failures = (bs ? bs.failures : 0) + 1;
+      state.set(podName, { failures, nextRetryAt: now + backoffDelay(failures) });
+    },
+    reset(podName) {
+      state.delete(podName);
+    },
+  };
+}
+
+/**
  * Start the background state-observation loop.
  *
  * Every `ctx.intervalMs` (default 3s) the loop:
@@ -139,7 +170,7 @@ function startPollingLoop(ctx) {
   // Allow tests to inject mock implementations via ctx._pollPod / ctx._detectDrift.
   const _pollPod = ctx._pollPod || pollPod;
   const _detectDrift = ctx._detectDrift || detectDrift;
-  const backoff = new Map(); // podName → {failures, nextRetryAt}
+  const backoff = createBackoffTracker();
   let timer = null;
   let stopped = false;
 
@@ -156,18 +187,16 @@ function startPollingLoop(ctx) {
         if (!pod || typeof pod.name !== 'string') continue;
 
         // Honour backoff window.
-        const bs = backoff.get(pod.name);
-        if (bs && bs.nextRetryAt > now) continue;
+        if (!backoff.shouldRetry(pod.name, now)) continue;
 
         const actual = await _pollPod(pod);
         if (!actual.reachable) {
-          const failures = (bs ? bs.failures : 0) + 1;
-          backoff.set(pod.name, { failures, nextRetryAt: now + backoffDelay(failures) });
+          backoff.recordFailure(pod.name, now);
           continue;
         }
 
         // Pod responded — reset backoff.
-        if (bs) backoff.delete(pod.name);
+        backoff.reset(pod.name);
 
         const desired = cmByPod.get(pod.name);
         if (!desired) continue; // No ConfigMap for this Pod — skip.
@@ -203,4 +232,11 @@ function startPollingLoop(ctx) {
   };
 }
 
-module.exports = { pollPod, fetchWithTimeout, detectDrift, startPollingLoop, backoffDelay };
+module.exports = {
+  pollPod,
+  fetchWithTimeout,
+  detectDrift,
+  startPollingLoop,
+  backoffDelay,
+  createBackoffTracker,
+};
