@@ -2,6 +2,10 @@
 
 const KEEPALIVE_INTERVAL_MS = 20000; // 20s
 
+// Event types that the SSE endpoint broadcasts. Exported so other modules
+// can reference the canonical list (e.g., for audit replay or documentation).
+const SSE_EVENT_TYPES = ['pod_state_change', 'drift_detected', 'audit_event'];
+
 /**
  * Create an Express middleware that serves a Server-Sent Events endpoint.
  *
@@ -46,10 +50,9 @@ function createSseHandler(bus, opts = {}) {
     }, keepaliveMs);
 
     // Subscribe to known event types
-    const KNOWN_EVENTS = ['pod_state_change', 'drift_detected', 'audit_event'];
     const handlers = [];
 
-    for (const evt of KNOWN_EVENTS) {
+    for (const evt of SSE_EVENT_TYPES) {
       const wrappedHandler = (payload) => {
         safeWrite(`event: ${evt}\ndata: ${JSON.stringify(payload)}\n\n`);
       };
@@ -72,4 +75,4 @@ function createSseHandler(bus, opts = {}) {
   };
 }
 
-module.exports = { createSseHandler, KEEPALIVE_INTERVAL_MS };
+module.exports = { createSseHandler, KEEPALIVE_INTERVAL_MS, SSE_EVENT_TYPES };
