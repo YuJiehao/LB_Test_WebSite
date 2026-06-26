@@ -112,7 +112,14 @@
   - No lint config (pre-existing)
 
 ### Task 2.3: Apply orchestrator with parallelism
-- status: pending
+- status: **DONE** (commits 861c8fd..53a310c, review clean after error-handling fix)
+- TDD: 3 commits (RED `609f88c` → GREEN `87a6223` → REFACTOR `c0af93f`) + review-fix `53a310c`
+- Test: 33/33 pass (5 new apply tests)
+- **Important fix applied**: reviewer found `getFaultStateConfigMap` errors not caught — the "never throws" contract was violated. Fix: wrapped whole per-Pod handler in single try/catch.
+- **Minor findings (record for final review):**
+  - Skipped path (CM is null) has no test coverage
+  - Default `updatedBy`/`timeoutMs` fallbacks untested
+  - Empty try/catch for audit placeholder (linter noise)
 
 ### Task 2.4: REST routes for apply and reset
 - status: pending
