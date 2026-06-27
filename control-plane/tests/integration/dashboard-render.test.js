@@ -50,7 +50,7 @@ describe('Dashboard page render', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/html/);
-    expect(res.text).toContain('LB Fault Control Plane');
+    expect(res.text).toContain('Fault Injection Control');
   });
 
   // -----------------------------------------------------------------------

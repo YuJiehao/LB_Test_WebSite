@@ -76,8 +76,8 @@ describe('selectTargets()', () => {
     expect(callArgs[0]).toBe(NAMESPACE);
     expect(callArgs[5]).toBe('app=lb-test,tier=web');
     expect(result).toEqual([
-      { name: 'web-0', ip: '10.0.0.1', nodeName: 'node-x' },
-      { name: 'web-2', ip: '10.0.0.3', nodeName: 'node-x' },
+      { name: 'web-0', ip: '10.0.0.1', nodeName: 'node-x', labels: { app: 'lb-test', tier: 'web' } },
+      { name: 'web-2', ip: '10.0.0.3', nodeName: 'node-x', labels: { app: 'lb-test', tier: 'web' } },
     ]);
   });
 

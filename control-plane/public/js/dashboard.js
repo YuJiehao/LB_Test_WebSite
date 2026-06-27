@@ -163,6 +163,8 @@
                 ? result.body.applied.length
                 : 0;
             window.notice.toast('Fault applied to ' + count + ' pod(s)', 'success');
+            // Update row badges immediately (SSE will refine within 3s)
+            updateHeaderStats();
           } else {
             var msg =
               (result.body && result.body.error) ||
@@ -186,6 +188,25 @@
   //  SSE — EventSource for real-time pod state
   // -----------------------------------------------------------------------
 
+  /**
+   * Recalculate healthy/faulted counts from the current table rows and
+   * update the header subtitle text.
+   */
+  function updateHeaderStats() {
+    var sub = document.querySelector('.dashboard-header__sub');
+    if (!sub) return;
+
+    var rows = document.querySelectorAll('.pod-row');
+    var total = rows.length;
+    var healthy = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var badge = rows[i].querySelector('.badge');
+      if (badge && badge.classList.contains('status-ok')) healthy++;
+    }
+    var faulted = total - healthy;
+    sub.textContent = total + ' pods · ' + healthy + ' healthy · ' + faulted + ' faulted';
+  }
+
   function initSSE() {
     var es;
 
@@ -201,6 +222,7 @@
         var row = document.querySelector('[data-pod="' + data.pod + '"]');
         if (row) {
           mergeStateChange(row, data);
+          updateHeaderStats();
         }
       } catch (_) {
         // ignore malformed events
@@ -224,6 +246,59 @@
   }
 
   // -----------------------------------------------------------------------
+  //  Per-pod Reset buttons
+  // -----------------------------------------------------------------------
+
+  /**
+   * Attach click handlers to every .pod-reset-btn in the table.
+   * Sends POST /api/fault/apply with {target:{type:'single',pod:name},mode:'none'}
+   * so only that one Pod is reset.
+   */
+  function wireResetButtons() {
+    var buttons = document.querySelectorAll('.pod-reset-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener('click', function () {
+        var podName = this.getAttribute('data-pod');
+        if (!podName) return;
+
+        this.disabled = true;
+        this.textContent = '…';
+
+        var self = this;
+        fetch('/api/fault/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            target: { type: 'single', pod: podName },
+            mode: 'none',
+          }),
+        })
+          .then(function (res) {
+            return res.json().then(function (body) {
+              return { ok: res.ok, status: res.status, body: body };
+            });
+          })
+          .then(function (result) {
+            if (result.ok && result.body.applied && result.body.applied.length > 0) {
+              window.notice.toast('Pod ' + podName + ' reset to none', 'success');
+              updateHeaderStats();
+            } else {
+              var msg = (result.body && result.body.error) || 'Reset failed';
+              window.notice.toast(msg, 'error');
+            }
+          })
+          .catch(function (err) {
+            window.notice.toast('Reset failed: ' + err.message, 'error');
+          })
+          .finally(function () {
+            self.disabled = false;
+            self.textContent = 'Reset';
+          });
+      });
+    }
+  }
+
+  // -----------------------------------------------------------------------
   //  initDashboard — wire everything up
   // -----------------------------------------------------------------------
 
@@ -233,6 +308,7 @@
       wireInlineInputs(form);
       wireFormSubmit(form);
     }
+    wireResetButtons();
     initSSE();
   }
 

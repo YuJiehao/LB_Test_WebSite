@@ -135,6 +135,7 @@ function filterBySelector(apiPods, selector) {
     name: apiPod.metadata.name,
     ip: apiPod.status && apiPod.status.podIP,
     nodeName: apiPod.spec && apiPod.spec.nodeName,
+    labels: (apiPod.metadata && apiPod.metadata.labels) || {},
   }));
 }
 

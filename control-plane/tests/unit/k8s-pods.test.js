@@ -81,9 +81,9 @@ describe('listPods()', () => {
 
     // ...and the mapping logic produced the expected plain objects.
     expect(result).toEqual([
-      { name: 'web-0', ip: '10.0.0.1', nodeName: 'node-a' },
-      { name: 'web-1', ip: '10.0.0.2', nodeName: 'node-b' },
-      { name: 'web-2', ip: '10.0.0.3', nodeName: 'node-c' },
+      { name: 'web-0', ip: '10.0.0.1', nodeName: 'node-a', labels: { app: 'test', tier: 'web' } },
+      { name: 'web-1', ip: '10.0.0.2', nodeName: 'node-b', labels: { app: 'test', tier: 'web' } },
+      { name: 'web-2', ip: '10.0.0.3', nodeName: 'node-c', labels: { app: 'test', tier: 'web' } },
     ]);
   });
 

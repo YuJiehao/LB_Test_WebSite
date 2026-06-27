@@ -96,13 +96,13 @@ describe('Dashboard pod table and filter', () => {
   // -----------------------------------------------------------------------
   // Test 3: Label-selector input is prefilled with app=load-balancer-test
   // -----------------------------------------------------------------------
-  test('label-selector input is prefilled with the default selector', async () => {
+  test('header bar shows pod count and label selector', async () => {
     const res = await request(app).get('/');
 
-    // The filter input should have the default value
+    // The header should show the label selector and pod count
     expect(res.text).toContain('app=load-balancer-test');
-    // Should be in an input element
-    expect(res.text).toMatch(/<input[^>]*app=load-balancer-test[^>]*>/i);
+    expect(res.text).toContain('2 pods');
+    expect(res.text).toContain('1 healthy');
   });
 
   // -----------------------------------------------------------------------

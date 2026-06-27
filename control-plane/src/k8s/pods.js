@@ -3,22 +3,19 @@
 const { listPods: listPodsAdapter } = require('./adapter');
 
 /**
- * Map a `V1Pod` API object to the plain `{name, ip, nodeName}` record
- * the rest of the control plane consumes.
+ * Map a `V1Pod` API object to the plain record the rest of the control
+ * plane consumes.
  *
- * Only the three fields Phase 3 actually needs are extracted — YAGNI
- * says we don't carry status, containers, owner refs, etc. until a real
- * consumer asks for them.
- *
- * @param {{ metadata?: { name?: string }, spec?: { nodeName?: string }, status?: { podIP?: string } }} apiPod
+ * @param {{ metadata?: { name?: string, labels?: object }, spec?: { nodeName?: string }, status?: { podIP?: string } }} apiPod
  *   A `V1Pod` (or a faithful subset thereof — tests use plain objects).
- * @returns {{name: string, ip: string, nodeName: string}}
+ * @returns {{name: string, ip: string, nodeName: string, labels: object}}
  */
 function toPlainPod(apiPod) {
   return {
     name: apiPod.metadata.name,
     ip: apiPod.status.podIP,
     nodeName: apiPod.spec.nodeName,
+    labels: (apiPod.metadata && apiPod.metadata.labels) || {},
   };
 }
 

@@ -175,6 +175,7 @@ function mountRoutes(app, opts) {
             name: pod.name,
             ip: pod.ip,
             nodeName: pod.nodeName,
+            labels: pod.labels || {},
             mode: cm ? cm.mode : 'none',
             slowDelayMs: cm ? cm.slowDelayMs : 0,
             resourceVersion: cm ? cm.resourceVersion : null,

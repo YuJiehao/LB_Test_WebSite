@@ -19,12 +19,22 @@
   const _sc = _statusClass(_mode);
   const _sl = _statusLabel(_mode);
 %>
+<%
+  var _labels = pod.labels || {};
+  var _chipsHtml = '';
+  for (var k in _labels) {
+    if (!Object.prototype.hasOwnProperty.call(_labels, k)) continue;
+    _chipsHtml += '<span class="label-chip">' + k + '=<wbr>' + _labels[k] + '</span>';
+  }
+  if (!_chipsHtml) _chipsHtml = '<span style="color:var(--color-text-muted);font-style:italic">none</span>';
+%>
 <tr class="pod-row" data-pod="<%= pod.name %>">
   <td class="pod-row__name"><%= pod.name %></td>
   <td class="pod-row__ip"><%= pod.ip %></td>
+  <td class="pod-row__labels"><%- _chipsHtml %></td>
   <td class="pod-row__mode"><code><%= _mode %></code></td>
   <td class="pod-row__status"><span class="badge <%= _sc %>"><%= _sl %></span></td>
   <td class="pod-row__actions">
-    <button type="button" class="btn btn--xs" title="Reset this pod">Reset</button>
+    <button type="button" class="btn btn--xs pod-reset-btn" data-pod="<%= pod.name %>" title="Reset this pod to mode=none">Reset</button>
   </td>
 </tr>
